@@ -8,17 +8,19 @@ function formatDate(dateString) {
   return formatted === 'Invalid Date' ? '-' : formatted;
 }
 
-// Format currency
+// Format currency (Ugandan Shilling)
 function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-NG', {
+  return new Intl.NumberFormat('en-UG', {
     style: 'currency',
-    currency: 'NGN',
-  }).format(amount);
+    currency: 'UGX',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
 }
 
 // Format number with commas
 function formatNumber(num) {
-  return num.toLocaleString('en-NG');
+  return num.toLocaleString('en-UG');
 }
 
 // Get status badge HTML

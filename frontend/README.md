@@ -201,7 +201,7 @@ requireAuth();
 Helper functions:
 ```javascript
 // Formatting
-formatCurrency(100)        // ₦100.00
+formatCurrency(100)        // USh 100
 formatDate(date)           // Jun 10, 2026
 formatNumber(1000)         // 1,000
 
@@ -245,7 +245,7 @@ Storage.get(key)
 
 <!-- Stat card -->
 <div class="stat-card success">
-  <div class="stat-value">₦100,000</div>
+  <div class="stat-value">USh 100,000</div>
   <div class="stat-label">Total Sales</div>
 </div>
 

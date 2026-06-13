@@ -107,7 +107,7 @@ const sendDailySalesSummary = async (totalSales, transactionCount, topProducts) 
     }
 
     const productsList = topProducts
-      .map((p) => `<li>${p.name}: ${p.quantity} units - ₦${parseFloat(p.revenue).toFixed(2)}</li>`)
+      .map((p) => `<li>${p.name}: ${p.quantity} units - USh${parseFloat(p.revenue).toFixed(2)}</li>`)
       .join('');
 
     const mailOptions = {
@@ -123,7 +123,7 @@ const sendDailySalesSummary = async (totalSales, transactionCount, topProducts) 
             <td style="border: 1px solid #ddd; padding: 8px;"><strong>Transactions</strong></td>
           </tr>
           <tr>
-            <td style="border: 1px solid #ddd; padding: 8px; font-size: 18px; color: #4CAF50; font-weight: bold;">₦${parseFloat(totalSales).toFixed(2)}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; font-size: 18px; color: #4CAF50; font-weight: bold;">USh${parseFloat(totalSales).toFixed(2)}</td>
             <td style="border: 1px solid #ddd; padding: 8px; font-size: 18px; color: #4CAF50; font-weight: bold;">${transactionCount}</td>
           </tr>
         </table>

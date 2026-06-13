@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,58 +7,709 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .pos-product-list { max-height: 320px; overflow-y: auto; }
+        .cart-item { border-bottom: 1px solid #eee; padding: 8px 0; }
+        .cart-item:last-child { border-bottom: none; }
+        .receipt-box { font-family: monospace; font-size: 13px; }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-custom">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
+                    <small class="ms-2" id="branchName"></small>
+                </span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
         </div>
     </nav>
 
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
-                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
-                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="#" class="active"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
+                <ul class="sidebar-menu" id="sidebarMenu"></ul>
             </div>
 
             <div class="col-md-10 p-4">
                 <div class="dashboard-header">
-                    <h1><i class="fas fa-shopping-cart me-2"></i>Sales</h1>
-                    <p>Record and track sales transactions</p>
+                    <h1><i class="fas fa-shopping-cart me-2"></i><span id="pageTitle">Sales</span></h1>
+                    <p id="pageSubtitle">Record and track sales transactions</p>
                 </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Sales management page is under development.
+
+                <!-- Stats -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="statTodaySales">USh 0</div>
+                            <div class="stat-label">Today's Sales</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card info">
+                            <div class="stat-value" id="statTransactions">0</div>
+                            <div class="stat-label">Transactions</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="statAvgSale">USh 0</div>
+                            <div class="stat-label">Avg. Sale</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card danger">
+                            <div class="stat-value" id="statVoided">0</div>
+                            <div class="stat-label">Voided</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-3" id="salesTabs">
+                    <li class="nav-item" id="posTabItem">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#posTab">New Sale</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="historyTabBtn" data-bs-toggle="tab" data-bs-target="#historyTab" onclick="loadSales()">Sales History</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- POS Tab (sales agents) -->
+                    <div class="tab-pane fade show active" id="posTab">
+                        <div class="row" id="posSection">
+                            <div class="col-md-7">
+                                <div class="table-container p-3">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <input type="text" class="form-control" id="productSearch" placeholder="Search products..." onkeyup="filterPosProducts()">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <form onsubmit="scanBarcode(event)" class="input-group">
+                                                <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                                <input type="text" class="form-control" id="barcodeInput" placeholder="Scan or enter barcode">
+                                                <button type="submit" class="btn btn-secondary">Add</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="pos-product-list">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th>Price</th>
+                                                    <th>Stock</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="posProductsTable">
+                                                <tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="table-container p-3">
+                                    <h5 class="mb-3"><i class="fas fa-shopping-basket me-2"></i>Cart</h5>
+                                    <div id="cartItems" class="mb-3" style="min-height: 150px;">
+                                        <p class="text-muted text-center py-4">Cart is empty</p>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subtotal</span>
+                                        <strong id="cartSubtotal">USh 0</strong>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Amount Paid</label>
+                                        <input type="number" class="form-control form-control-lg" id="amountPaid" step="0.01" min="0" oninput="updateChange()">
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-3">
+                                        <span>Change</span>
+                                        <strong id="changeAmount" class="text-success">USh 0</strong>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-secondary flex-fill" onclick="clearCart()">Clear</button>
+                                        <button class="btn btn-success flex-fill" id="completeSaleBtn" onclick="completeSale()" disabled>
+                                            <i class="fas fa-check me-1"></i>Complete Sale
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="noPosMessage" class="alert alert-info" style="display:none">
+                            <i class="fas fa-info-circle me-2"></i>Only sales agents can record new sales. Switch to Sales History to view transactions.
+                        </div>
+                    </div>
+
+                    <!-- History Tab -->
+                    <div class="tab-pane fade" id="historyTab">
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <input type="date" class="form-control" id="fromDate" onchange="loadSales()">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="date" class="form-control" id="toDate" onchange="loadSales()">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-control" id="statusFilter" onchange="loadSales()">
+                                    <option value="">All Statuses</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="voided">Voided</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="branchFilterCol" style="display:none">
+                                <select class="form-control" id="branchFilter" onchange="loadSales()">
+                                    <option value="">All Branches</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Receipt #</th>
+                                        <th>Date</th>
+                                        <th>Agent</th>
+                                        <th id="historyBranchCol">Branch</th>
+                                        <th>Total</th>
+                                        <th>Paid</th>
+                                        <th>Change</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salesTable">
+                                    <tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Sale Detail Modal -->
+    <div class="modal fade" id="saleDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="saleDetailTitle">Sale Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="saleDetailBody">Loading...</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-danger" id="voidSaleBtn" onclick="voidSale()" style="display:none">
+                        <i class="fas fa-ban me-1"></i>Void Sale
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div class="modal fade" id="receiptModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-receipt me-2"></i>Sale Complete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body receipt-box" id="receiptBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+
     <script>
         requireAuth();
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    window.location.href = '../index.html';
-                } catch (error) {
-                    console.error('Logout failed');
+
+        const user = auth.getCurrentUser();
+        const userRole = user?.role;
+        const isAgent = userRole === 'sales_agent';
+        const isManager = userRole === 'manager';
+        const isDirector = userRole === 'director';
+        const canVoid = isManager;
+        const canUsePOS = isAgent;
+
+        document.getElementById('navUserName').textContent = user?.full_name || 'User';
+        if (user?.branch_name) {
+            document.getElementById('branchName').textContent = `(${user.branch_name})`;
+        }
+
+        if (isAgent) {
+            document.getElementById('pageTitle').textContent = 'Sales';
+            document.getElementById('pageSubtitle').textContent = 'Record sales and view your transaction history';
+        } else if (isManager) {
+            document.getElementById('pageSubtitle').textContent = 'View branch sales and manage transactions';
+        }
+
+        if (!canUsePOS) {
+            document.getElementById('posTabItem').style.display = 'none';
+            document.getElementById('posSection').style.display = 'none';
+            document.getElementById('noPosMessage').style.display = 'block';
+            document.getElementById('historyTabBtn').classList.add('active');
+            document.getElementById('posTab').classList.remove('show', 'active');
+            document.getElementById('historyTab').classList.add('show', 'active');
+        }
+
+        if (!isDirector) {
+            document.getElementById('historyBranchCol').style.display = 'none';
+        }
+
+        let allProducts = [];
+        let allSales = [];
+        let cart = [];
+        let selectedSaleId = null;
+
+        const SIDEBARS = {
+            director: [
+                { href: 'dashboard-director.html', icon: 'fa-chart-line', label: 'Dashboard' },
+                { href: 'categories.html', icon: 'fa-list', label: 'Categories' },
+                { href: 'products.html', icon: 'fa-box', label: 'Products' },
+                { href: 'branches.html', icon: 'fa-sitemap', label: 'Branches' },
+                { href: 'users.html', icon: 'fa-users', label: 'Users' },
+                { href: 'inventory.html', icon: 'fa-warehouse', label: 'Inventory' },
+                { href: 'sales.html', icon: 'fa-shopping-cart', label: 'Sales', active: true },
+                { href: 'reports.html', icon: 'fa-file-chart-line', label: 'Reports' },
+                { href: 'audit-logs.html', icon: 'fa-history', label: 'Audit Logs' },
+            ],
+            manager: [
+                { href: 'dashboard-manager.html', icon: 'fa-chart-line', label: 'Dashboard' },
+                { href: 'products.html', icon: 'fa-box', label: 'Products' },
+                { href: 'inventory.html', icon: 'fa-warehouse', label: 'Inventory' },
+                { href: 'sales.html', icon: 'fa-shopping-cart', label: 'Sales', active: true },
+                { href: 'reports.html', icon: 'fa-file-chart-line', label: 'Reports' },
+                { href: 'audit-logs.html', icon: 'fa-history', label: 'Audit Logs' },
+            ],
+            sales_agent: [
+                { href: 'dashboard-agent.html', icon: 'fa-chart-line', label: 'Dashboard' },
+                { href: 'products.html', icon: 'fa-box', label: 'Available Products' },
+                { href: 'sales.html', icon: 'fa-shopping-cart', label: 'My Sales', active: true },
+                { href: 'audit-logs.html', icon: 'fa-history', label: 'Activity Log' },
+            ],
+        };
+
+        function renderSidebar() {
+            const items = SIDEBARS[userRole] || SIDEBARS.director;
+            document.getElementById('sidebarMenu').innerHTML = items.map(item => `
+                <li><a href="${item.href}"${item.active ? ' class="active"' : ''}>
+                    <i class="fas ${item.icon} me-2"></i>${item.label}
+                </a></li>
+            `).join('');
+        }
+
+        function getCartTotal() {
+            return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        }
+
+        function updateStats(sales) {
+            const today = new Date().toISOString().split('T')[0];
+            const todaySales = sales.filter(s => s.sale_date?.startsWith(today) && s.status === 'completed');
+            const total = todaySales.reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
+            const voided = sales.filter(s => s.status === 'voided').length;
+
+            document.getElementById('statTodaySales').textContent = formatCurrency(total);
+            document.getElementById('statTransactions').textContent = todaySales.length;
+            document.getElementById('statAvgSale').textContent = todaySales.length
+                ? formatCurrency(total / todaySales.length) : formatCurrency(0);
+            document.getElementById('statVoided').textContent = voided;
+        }
+
+        async function loadProducts() {
+            if (!canUsePOS) return;
+            try {
+                const response = await api.getProducts();
+                if (response.success) {
+                    allProducts = (response.data || []).filter(p => p.status === 'active');
+                    displayPosProducts(allProducts);
                 }
+            } catch (error) {
+                showError('Failed to load products');
             }
         }
+
+        function displayPosProducts(products) {
+            document.getElementById('posProductsTable').innerHTML = products.map(p => `
+                <tr>
+                    <td>
+                        <strong>${p.name}</strong>
+                        <div class="text-muted small">${p.category_name || ''}</div>
+                    </td>
+                    <td>${formatCurrency(p.price)}</td>
+                    <td>${p.quantity_in_stock > 0
+                        ? `<span class="badge bg-success">${p.quantity_in_stock}</span>`
+                        : '<span class="badge bg-danger">0</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="addToCart(${p.id})"
+                            ${p.quantity_in_stock === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="text-center text-muted">No products available</td></tr>';
+        }
+
+        function filterPosProducts() {
+            const term = document.getElementById('productSearch').value.toLowerCase();
+            const filtered = allProducts.filter(p =>
+                p.name.toLowerCase().includes(term) ||
+                (p.category_name && p.category_name.toLowerCase().includes(term))
+            );
+            displayPosProducts(filtered);
+        }
+
+        function addToCart(productId, qty = 1) {
+            const product = allProducts.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = cart.find(c => c.product_id === productId);
+            const currentQty = existing ? existing.quantity : 0;
+
+            if (currentQty + qty > product.quantity_in_stock) {
+                showError(`Only ${product.quantity_in_stock} units available for ${product.name}`);
+                return;
+            }
+
+            if (existing) {
+                existing.quantity += qty;
+            } else {
+                cart.push({
+                    product_id: productId,
+                    name: product.name,
+                    price: parseFloat(product.price),
+                    quantity: qty,
+                    maxStock: product.quantity_in_stock,
+                });
+            }
+            renderCart();
+        }
+
+        async function scanBarcode(event) {
+            event.preventDefault();
+            const barcode = document.getElementById('barcodeInput').value.trim();
+            if (!barcode) return;
+
+            try {
+                const response = await api.lookupBarcode(barcode);
+                if (response.success) {
+                    const data = response.data;
+                    if (data.product_status !== 'active') {
+                        showError('Product is not available for sale');
+                        return;
+                    }
+                    addToCart(data.product_id);
+                    document.getElementById('barcodeInput').value = '';
+                    showSuccess(`Added ${data.product_name}`);
+                }
+            } catch (error) {
+                showError(error.message || 'Barcode not found');
+            }
+        }
+
+        function updateCartQty(productId, delta) {
+            const item = cart.find(c => c.product_id === productId);
+            if (!item) return;
+
+            const newQty = item.quantity + delta;
+            if (newQty <= 0) {
+                cart = cart.filter(c => c.product_id !== productId);
+            } else if (newQty > item.maxStock) {
+                showError(`Maximum available: ${item.maxStock}`);
+                return;
+            } else {
+                item.quantity = newQty;
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartItems');
+            const total = getCartTotal();
+
+            if (cart.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-4">Cart is empty</p>';
+                document.getElementById('cartSubtotal').textContent = formatCurrency(0);
+                document.getElementById('completeSaleBtn').disabled = true;
+                updateChange();
+                return;
+            }
+
+            container.innerHTML = cart.map(item => `
+                <div class="cart-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${item.name}</strong>
+                        <div class="text-muted small">${formatCurrency(item.price)} each</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateCartQty(${item.product_id}, -1)">−</button>
+                        <span class="fw-bold">${item.quantity}</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="updateCartQty(${item.product_id}, 1)">+</button>
+                        <strong class="ms-2">${formatCurrency(item.price * item.quantity)}</strong>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('cartSubtotal').textContent = formatCurrency(total);
+            document.getElementById('completeSaleBtn').disabled = false;
+            updateChange();
+        }
+
+        function updateChange() {
+            const total = getCartTotal();
+            const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+            const change = Math.max(0, paid - total);
+            document.getElementById('changeAmount').textContent = formatCurrency(change);
+        }
+
+        function clearCart() {
+            cart = [];
+            document.getElementById('amountPaid').value = '';
+            renderCart();
+        }
+
+        async function completeSale() {
+            const total = getCartTotal();
+            const amountPaid = parseFloat(document.getElementById('amountPaid').value);
+
+            if (cart.length === 0) {
+                showError('Cart is empty');
+                return;
+            }
+            if (isNaN(amountPaid) || amountPaid < total) {
+                showError('Amount paid must cover the total');
+                return;
+            }
+
+            const btn = document.getElementById('completeSaleBtn');
+            btn.disabled = true;
+
+            try {
+                const response = await api.createSale({
+                    items: cart.map(c => ({ product_id: c.product_id, quantity: c.quantity })),
+                    amount_paid: amountPaid,
+                });
+
+                if (response.success) {
+                    showReceipt(response.data);
+                    clearCart();
+                    loadProducts();
+                    loadSales();
+                } else {
+                    showError(response.message);
+                }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                btn.disabled = cart.length === 0;
+            }
+        }
+
+        function showReceipt(sale) {
+            const change = parseFloat(sale.amount_paid) - parseFloat(sale.total_amount);
+            document.getElementById('receiptBody').innerHTML = `
+                <div class="text-center mb-3">
+                    <strong>CROWN STORES</strong><br>
+                    ${sale.branch_name || ''}<br>
+                    <small>${sale.receipt_number}</small>
+                </div>
+                <hr>
+                <div class="mb-2"><small>Agent: ${sale.sales_agent_name}</small></div>
+                <div class="mb-2"><small>Date: ${formatDate(sale.created_at || sale.sale_date)}</small></div>
+                <hr>
+                ${(sale.items || []).map(item => `
+                    <div class="d-flex justify-content-between">
+                        <span>${item.product_name} x${item.quantity}</span>
+                        <span>${formatCurrency(item.unit_price * item.quantity)}</span>
+                    </div>
+                `).join('')}
+                <hr>
+                <div class="d-flex justify-content-between"><span>Total</span><strong>${formatCurrency(sale.total_amount)}</strong></div>
+                <div class="d-flex justify-content-between"><span>Paid</span><span>${formatCurrency(sale.amount_paid)}</span></div>
+                <div class="d-flex justify-content-between"><span>Change</span><span>${formatCurrency(change)}</span></div>
+                <hr>
+                <div class="text-center"><small>Thank you for your purchase!</small></div>
+            `;
+            new bootstrap.Modal(document.getElementById('receiptModal')).show();
+        }
+
+        async function loadBranches() {
+            if (!isDirector) return;
+            try {
+                const response = await api.getBranches();
+                if (response.success) {
+                    document.getElementById('branchFilterCol').style.display = 'block';
+                    document.getElementById('branchFilter').innerHTML =
+                        '<option value="">All Branches</option>' +
+                        response.data.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function loadSales() {
+            const params = {};
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            const status = document.getElementById('statusFilter').value;
+
+            if (fromDate) params.from_date = fromDate;
+            if (toDate) params.to_date = toDate;
+            if (status) params.status = status;
+            if (isDirector && document.getElementById('branchFilter').value) {
+                params.branch_id = document.getElementById('branchFilter').value;
+            }
+            if (isAgent) {
+                params.agent_id = user.id;
+            }
+
+            try {
+                const response = await api.getSales(params);
+                if (response.success) {
+                    allSales = response.data || [];
+                    updateStats(allSales);
+                    displaySales(allSales);
+                }
+            } catch (error) {
+                showError('Failed to load sales');
+            }
+        }
+
+        function displaySales(sales) {
+            const showBranch = isDirector;
+            const colSpan = showBranch ? 9 : 8;
+
+            document.getElementById('salesTable').innerHTML = sales.map(sale => `
+                <tr>
+                    <td><code>${sale.receipt_number}</code></td>
+                    <td>${formatDate(sale.sale_date || sale.created_at)}</td>
+                    <td>${sale.sales_agent_name}</td>
+                    ${showBranch ? `<td>${sale.branch_name}</td>` : ''}
+                    <td>${formatCurrency(sale.total_amount)}</td>
+                    <td>${formatCurrency(sale.amount_paid)}</td>
+                    <td>${formatCurrency(sale.change_given || 0)}</td>
+                    <td>${getStatusBadge(sale.status)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewSale(${sale.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('') || `<tr><td colspan="${colSpan}" class="text-center text-muted">No sales found</td></tr>`;
+        }
+
+        async function viewSale(id) {
+            selectedSaleId = id;
+            document.getElementById('saleDetailBody').innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
+            document.getElementById('voidSaleBtn').style.display = 'none';
+            new bootstrap.Modal(document.getElementById('saleDetailModal')).show();
+
+            try {
+                const response = await api.getSale(id);
+                if (!response.success) return;
+
+                const sale = response.data;
+                document.getElementById('saleDetailTitle').textContent = `Receipt ${sale.receipt_number}`;
+
+                if (canVoid && sale.status === 'completed') {
+                    document.getElementById('voidSaleBtn').style.display = 'inline-block';
+                }
+
+                document.getElementById('saleDetailBody').innerHTML = `
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr><th>Agent</th><td>${sale.sales_agent_name}</td></tr>
+                                <tr><th>Branch</th><td>${sale.branch_name}</td></tr>
+                                <tr><th>Date</th><td>${formatDate(sale.created_at || sale.sale_date)}</td></tr>
+                                <tr><th>Status</th><td>${getStatusBadge(sale.status)}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr><th>Total</th><td>${formatCurrency(sale.total_amount)}</td></tr>
+                                <tr><th>Amount Paid</th><td>${formatCurrency(sale.amount_paid)}</td></tr>
+                                <tr><th>Change</th><td>${formatCurrency(sale.change_given || 0)}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <h6>Items</h6>
+                    <table class="table table-sm">
+                        <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>
+                        <tbody>
+                            ${(sale.items || []).map(item => `
+                                <tr>
+                                    <td>${item.product_name}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>${formatCurrency(item.unit_price)}</td>
+                                    <td>${formatCurrency(item.unit_price * item.quantity)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                document.getElementById('saleDetailBody').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            }
+        }
+
+        async function voidSale() {
+            if (!selectedSaleId) return;
+            if (!confirm('Void this sale? Inventory will be restored.')) return;
+
+            try {
+                const response = await api.voidSale(selectedSaleId);
+                if (response.success) {
+                    showSuccess('Sale voided');
+                    bootstrap.Modal.getInstance(document.getElementById('saleDetailModal')).hide();
+                    loadSales();
+                } else {
+                    showError(response.message);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function handleLogout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            try {
+                await auth.logout();
+                showSuccess('Logged out successfully');
+                setTimeout(() => window.location.href = '../index.html', 1000);
+            } catch (error) {
+                showError('Logout failed');
+            }
+        }
+
+        renderSidebar();
+        window.addEventListener('DOMContentLoaded', () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('fromDate').value = today;
+            document.getElementById('toDate').value = today;
+
+            loadBranches();
+            loadProducts();
+            loadSales();
+        });
     </script>
 </body>
 </html>

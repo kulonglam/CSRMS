@@ -188,8 +188,8 @@ const downloadReceiptPDF = async (req, res) => {
     items.forEach((item) => {
       doc.text(item.product_name.substring(0, 30), 40, yPosition);
       doc.text(item.quantity.toString(), 280, yPosition, { width: 40, align: 'right' });
-      doc.text(`₦${parseFloat(item.unit_price).toFixed(2)}`, 330, yPosition, { width: 60, align: 'right' });
-      doc.text(`₦${parseFloat(item.subtotal).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+      doc.text(`USh${parseFloat(item.unit_price).toFixed(2)}`, 330, yPosition, { width: 60, align: 'right' });
+      doc.text(`USh${parseFloat(item.subtotal).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
       yPosition += 15;
     });
 
@@ -199,16 +199,16 @@ const downloadReceiptPDF = async (req, res) => {
 
     doc.font('Helvetica-Bold').fontSize(10);
     doc.text('Total Amount:', 280, yPosition, { width: 120, align: 'right' });
-    doc.text(`₦${parseFloat(sale.total_amount).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+    doc.text(`USh${parseFloat(sale.total_amount).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
     yPosition += 20;
 
     doc.font('Helvetica').fontSize(9);
     doc.text('Amount Paid:', 280, yPosition, { width: 120, align: 'right' });
-    doc.text(`₦${parseFloat(sale.amount_paid).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+    doc.text(`USh${parseFloat(sale.amount_paid).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
     yPosition += 15;
 
     doc.text('Change Given:', 280, yPosition, { width: 120, align: 'right' });
-    doc.text(`₦${parseFloat(sale.change_given).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+    doc.text(`USh${parseFloat(sale.change_given).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
 
     // Footer
     doc.moveDown(2);

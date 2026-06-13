@@ -17,14 +17,30 @@ async function seed() {
     console.log('🌱 Starting database seed...\n');
     await client.query('BEGIN');
 
+    // Migrate legacy non-Uganda branch names (Nigeria) to Uganda locations
+    await client.query(`
+      UPDATE branches SET name = 'Kampala Main Branch', location = 'Kampala'
+      WHERE name = 'Main Branch' OR location IN ('Lagos', 'lagos');
+      UPDATE branches SET name = 'Entebbe Branch', location = 'Entebbe'
+      WHERE name = 'Abuja Branch' OR location IN ('Abuja', 'abuja');
+      UPDATE branches SET name = 'Jinja Branch', location = 'Jinja'
+      WHERE name = 'Kano Branch' OR location IN ('Kano', 'kano');
+      UPDATE branches SET name = 'Mbarara Branch', location = 'Mbarara'
+      WHERE name = 'Port Harcourt Branch' OR location IN ('Port Harcourt', 'port harcourt');
+      UPDATE users SET full_name = 'Branch Manager - Kampala'
+      WHERE full_name = 'Branch Manager - Lagos';
+      UPDATE users SET full_name = 'Branch Manager - Entebbe'
+      WHERE full_name = 'Branch Manager - Abuja';
+    `);
+
     // Branches
     console.log('📍 Creating branches...');
     const branchRes = await client.query(`
       INSERT INTO branches (name, location, status) VALUES
-        ('Main Branch',           'Lagos',         'active'),
-        ('Abuja Branch',          'Abuja',         'active'),
-        ('Kano Branch',           'Kano',          'active'),
-        ('Port Harcourt Branch',  'Port Harcourt', 'active')
+        ('Kampala Main Branch',  'Kampala',  'active'),
+        ('Entebbe Branch',       'Entebbe',  'active'),
+        ('Jinja Branch',         'Jinja',    'active'),
+        ('Mbarara Branch',       'Mbarara',  'active')
       ON CONFLICT (name) DO NOTHING
       RETURNING id, name
     `);
@@ -41,8 +57,8 @@ async function seed() {
     const userRes = await client.query(`
       INSERT INTO users (full_name, username, password_hash, role, branch_id, status) VALUES
         ('Crown Director',           'director', $1, 'director',   NULL,          'active'),
-        ('Branch Manager - Lagos',   'manager1', $2, 'manager',    $3,            'active'),
-        ('Branch Manager - Abuja',   'manager2', $2, 'manager',    $4,            'active'),
+        ('Branch Manager - Kampala', 'manager1', $2, 'manager',    $3,            'active'),
+        ('Branch Manager - Entebbe', 'manager2', $2, 'manager',    $4,            'active'),
         ('Sales Agent 1',            'agent1',   $5, 'sales_agent',$3,            'active'),
         ('Sales Agent 2',            'agent2',   $5, 'sales_agent',$3,            'active'),
         ('Sales Agent 3',            'agent3',   $5, 'sales_agent',$4,            'active')
