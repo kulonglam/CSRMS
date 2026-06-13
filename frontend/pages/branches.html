@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branches - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3"><i class="fas fa-user-circle me-2"></i><span id="userName">User</span></span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
+                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
+                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
+                    <li><a href="#" class="active"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
+                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
+                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
+                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
+                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
+                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
+                </ul>
+            </div>
+
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-sitemap me-2"></i>Branches</h1>
+                        <p>Manage branch locations and information</p>
+                    </div>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#branchModal" onclick="resetForm()">
+                        <i class="fas fa-plus me-2"></i>Add Branch
+                    </button>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search branches..." onkeyup="filterTable()">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Location</th>
+                                <th>Staff</th>
+                                <th>Products</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="branchesTable">
+                            <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="branchModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Branch</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="branchForm" onsubmit="saveBranch(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Branch Name</label>
+                            <input type="text" class="form-control" id="branchName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <input type="text" class="form-control" id="branchLocation">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" id="branchStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+
+    <script>
+        requireAuth();
+        document.getElementById('userName').textContent = auth.getCurrentUser()?.full_name || 'User';
+
+        let allBranches = [];
+        let editingId = null;
+
+        async function loadBranches() {
+            try {
+                const data = await api.getBranches();
+                if (data.success) {
+                    allBranches = data.data || [];
+                    displayBranches(allBranches);
+                }
+            } catch (error) {
+                showError('Failed to load branches');
+            }
+        }
+
+        function displayBranches(branches) {
+            const html = branches.map(branch => `
+                <tr>
+                    <td>${branch.id}</td>
+                    <td>${branch.name}</td>
+                    <td>${branch.location || '-'}</td>
+                    <td>${branch.staff_count || 0}</td>
+                    <td>${branch.product_count || 0}</td>
+                    <td>${getStatusBadge(branch.status)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-warning" onclick="editBranch(${branch.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBranch(${branch.id})"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="7" class="text-center text-muted">No branches found</td></tr>';
+            document.getElementById('branchesTable').innerHTML = html;
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allBranches.filter(b => b.name.toLowerCase().includes(searchTerm));
+            displayBranches(filtered);
+        }
+
+        function resetForm() {
+            editingId = null;
+            document.getElementById('branchForm').reset();
+        }
+
+        function editBranch(id) {
+            const branch = allBranches.find(b => b.id === id);
+            if (branch) {
+                editingId = id;
+                document.getElementById('branchName').value = branch.name;
+                document.getElementById('branchLocation').value = branch.location;
+                document.getElementById('branchStatus').value = branch.status;
+                new bootstrap.Modal(document.getElementById('branchModal')).show();
+            }
+        }
+
+        async function saveBranch(event) {
+            event.preventDefault();
+            const data = {
+                name: document.getElementById('branchName').value.trim(),
+                location: document.getElementById('branchLocation').value.trim(),
+                status: document.getElementById('branchStatus').value
+            };
+
+            if (!data.name) {
+                showError('Branch name is required');
+                return;
+            }
+
+            try {
+                let response;
+                if (editingId) {
+                    response = await api.updateBranch(editingId, data);
+                } else {
+                    response = await api.createBranch(data);
+                }
+                if (response.success) {
+                    showSuccess(editingId ? 'Branch updated' : 'Branch created');
+                    bootstrap.Modal.getInstance(document.getElementById('branchModal')).hide();
+                    loadBranches();
+                } else {
+                    showError(response.message);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function deleteBranch(id) {
+            if (!confirm('Are you sure?')) return;
+            try {
+                const response = await api.deleteBranch(id);
+                if (response.success) {
+                    showSuccess('Branch deleted');
+                    loadBranches();
+                } else {
+                    showError(response.message);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await auth.logout();
+                    showSuccess('Logged out successfully');
+                    setTimeout(() => window.location.href = '../index.html', 1000);
+                } catch (error) {
+                    showError('Logout failed');
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadBranches);
+    </script>
+</body>
+</html>

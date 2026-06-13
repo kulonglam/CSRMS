@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Director Dashboard - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="userName">User</span>
+                </span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="#" class="active"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
+                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
+                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
+                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
+                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
+                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
+                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
+                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
+                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header">
+                    <h1><i class="fas fa-chart-line me-2"></i>Director Dashboard</h1>
+                    <p>Welcome to CSRMS - Monitor your entire retail operations</p>
+                </div>
+
+                <!-- Statistics Row -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="totalSales">UGX 0</div>
+                            <div class="stat-label">Total Sales</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card info">
+                            <div class="stat-value" id="inventoryValue">UGX 0</div>
+                            <div class="stat-label">Inventory Value</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="activeBranches">0</div>
+                            <div class="stat-label">Active Branches</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="procurementValue">UGX 0</div>
+                            <div class="stat-label">Pending Procurements</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts & Data -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom">
+                                <h5 class="mb-0">Top 10 Products</h5>
+                            </div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th>Stock</th>
+                                        <th>Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="topProductsTable">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom">
+                                <h5 class="mb-0">Sales Trends (Last 7 Days)</h5>
+                            </div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Sales Count</th>
+                                        <th>Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salesTrendsTable">
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="row">
+                    <div class="col-12">
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                            <h5 class="mb-3">Quick Actions</h5>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="products.html" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Add Product
+                                </a>
+                                <a href="categories.html" class="btn btn-success btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Add Category
+                                </a>
+                                <a href="users.html" class="btn btn-info btn-sm text-white">
+                                    <i class="fas fa-plus me-1"></i>Add User
+                                </a>
+                                <a href="branches.html" class="btn btn-warning btn-sm text-white">
+                                    <i class="fas fa-plus me-1"></i>Add Branch
+                                </a>
+                                <a href="reports.html" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-download me-1"></i>Export Report
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+
+    <script>
+        // Protect page
+        requireAuth();
+
+        // Check role
+        if (!auth.hasRole('director')) {
+            showError('Unauthorized: Director access required');
+            setTimeout(() => window.location.href = '../index.html', 2000);
+        }
+
+        // Set user name
+        document.getElementById('userName').textContent = auth.getCurrentUser()?.full_name || 'User';
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const data = await api.getDirectorDashboard();
+                if (data.success) {
+                    displayDashboard(data.data);
+                }
+            } catch (error) {
+                showError('Failed to load dashboard');
+            }
+        }
+
+        function displayDashboard(data) {
+            // Update statistics
+            document.getElementById('totalSales').textContent = formatCurrency(data.total_sales || 0);
+            document.getElementById('inventoryValue').textContent = formatCurrency(data.inventory_value || 0);
+            document.getElementById('activeBranches').textContent = data.active_branches || 0;
+            document.getElementById('procurementValue').textContent = formatCurrency(data.procurement_value || 0);
+
+            // Display top products
+            const topProductsHtml = (data.top_products || []).map(product => `
+                <tr>
+                    <td>${product.name}</td>
+                    <td>${product.category_name}</td>
+                    <td>${product.quantity_in_stock}</td>
+                    <td>${formatCurrency(product.price)}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="text-center text-muted">No data</td></tr>';
+            document.getElementById('topProductsTable').innerHTML = topProductsHtml;
+
+            // Display sales trends
+            const salesTrendsHtml = (data.sales_trends || []).map(trend => `
+                <tr>
+                    <td>${formatDate(trend.date)}</td>
+                    <td>${trend.sales_count}</td>
+                    <td>${formatCurrency(trend.total_amount)}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
+            document.getElementById('salesTrendsTable').innerHTML = salesTrendsHtml;
+        }
+
+        async function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await auth.logout();
+                    showSuccess('Logged out successfully');
+                    setTimeout(() => window.location.href = '../index.html', 1000);
+                } catch (error) {
+                    showError('Logout failed');
+                }
+            }
+        }
+
+        // Load on page load
+        window.addEventListener('DOMContentLoaded', loadDashboard);
+    </script>
+</body>
+</html>

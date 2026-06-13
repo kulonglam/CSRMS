@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Agent Dashboard - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="userName">User</span>
+                </span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="#" class="active"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
+                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Available Products</a></li>
+                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>My Sales</a></li>
+                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Activity Log</a></li>
+                </ul>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header">
+                    <h1><i class="fas fa-chart-line me-2"></i>Sales Dashboard</h1>
+                    <p>Your daily sales performance</p>
+                </div>
+
+                <!-- Today's Statistics -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="todayTransactions">0</div>
+                            <div class="stat-label">Today's Transactions</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card info">
+                            <div class="stat-value" id="todaySales">₦0</div>
+                            <div class="stat-label">Today's Sales</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="avgTransaction">₦0</div>
+                            <div class="stat-label">Avg Transaction</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Available Products -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Available Products</h5>
+                                <input type="text" class="form-control" id="searchProducts" placeholder="Search products..." style="width: 200px;" onkeyup="filterProducts()">
+                            </div>
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Product Name</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productsTable">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Sales -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom">
+                                <h5 class="mb-0">Recent Sales</h5>
+                            </div>
+                            <table class="table table-hover table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Items</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentSalesTable">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="row">
+                    <div class="col-12">
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                            <h5 class="mb-3">Quick Actions</h5>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button class="btn btn-success btn-sm" onclick="alert('POS System coming soon')">
+                                    <i class="fas fa-cash-register me-1"></i>Open POS
+                                </button>
+                                <a href="sales.html" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Record Sale
+                                </a>
+                                <button class="btn btn-info btn-sm text-white" onclick="printReceipt()">
+                                    <i class="fas fa-print me-1"></i>Print Receipt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+
+    <script>
+        // Protect page
+        requireAuth();
+
+        // Check role
+        if (!auth.hasRole(['sales_agent', 'manager', 'director'])) {
+            showError('Unauthorized: Sales Agent access required');
+            setTimeout(() => window.location.href = '../index.html', 2000);
+        }
+
+        // Set user info
+        document.getElementById('userName').textContent = auth.getCurrentUser()?.full_name || 'User';
+
+        let allProducts = [];
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const [dashboardData, productsData] = await Promise.all([
+                    api.getAgentDashboard(),
+                    api.getProducts()
+                ]);
+
+                if (dashboardData.success) {
+                    displayDashboard(dashboardData.data);
+                }
+
+                if (productsData.success) {
+                    allProducts = productsData.data || [];
+                    displayProducts(allProducts);
+                }
+            } catch (error) {
+                showError('Failed to load dashboard');
+                console.error(error);
+            }
+        }
+
+        function displayDashboard(data) {
+            // Today's Stats
+            document.getElementById('todayTransactions').textContent = data.todays_stats?.transaction_count || 0;
+            document.getElementById('todaySales').textContent = formatCurrency(data.todays_stats?.total_sales || 0);
+
+            const avgSale = data.todays_stats?.transaction_count > 0
+                ? (data.todays_stats?.total_sales / data.todays_stats?.transaction_count)
+                : 0;
+            document.getElementById('avgTransaction').textContent = formatCurrency(avgSale);
+
+            // Recent Sales
+            const salesHtml = (data.recent_sales || []).map(sale => `
+                <tr>
+                    <td>${formatDate(sale.sale_date)}</td>
+                    <td>${sale.item_count || 1}</td>
+                    <td>${formatCurrency(sale.total_amount)}</td>
+                    <td>${getStatusBadge(sale.status)}</td>
+                    <td>
+                        <button class="btn btn-xs btn-info" onclick="viewSaleDetails(${sale.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="5" class="text-center text-muted py-4">No sales yet</td></tr>';
+            document.getElementById('recentSalesTable').innerHTML = salesHtml;
+        }
+
+        function displayProducts(products) {
+            const html = products.map(product => `
+                <tr>
+                    <td><strong>${product.name}</strong></td>
+                    <td>${product.category_name}</td>
+                    <td>${formatCurrency(product.price)}</td>
+                    <td>
+                        ${product.quantity_in_stock > 0
+                            ? `<span class="badge bg-success">${product.quantity_in_stock}</span>`
+                            : `<span class="badge bg-danger">Out of Stock</span>`}
+                    </td>
+                    <td>
+                        <button class="btn btn-xs btn-primary" 
+                            onclick="addToCart(${product.id}, '${product.name}', ${product.price})"
+                            ${product.quantity_in_stock === 0 ? 'disabled' : ''}>
+                            <i class="fas fa-cart-plus"></i> Add
+                        </button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="5" class="text-center text-muted">No products found</td></tr>';
+            document.getElementById('productsTable').innerHTML = html;
+        }
+
+        function filterProducts() {
+            const searchTerm = document.getElementById('searchProducts').value.toLowerCase();
+            const filtered = allProducts.filter(p => 
+                p.name.toLowerCase().includes(searchTerm) ||
+                p.category_name.toLowerCase().includes(searchTerm)
+            );
+            displayProducts(filtered);
+        }
+
+        function addToCart(productId, name, price) {
+            showSuccess(`Added ${name} to cart`);
+            // POS system would handle cart logic
+        }
+
+        function viewSaleDetails(saleId) {
+            alert(`Sale Details: ${saleId}\n\nFull transaction details coming soon.`);
+        }
+
+        function printReceipt() {
+            alert('Print Receipt\n\nReceipt printing functionality coming soon.');
+        }
+
+        async function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await auth.logout();
+                    showSuccess('Logged out successfully');
+                    setTimeout(() => window.location.href = '../index.html', 1000);
+                } catch (error) {
+                    showError('Logout failed');
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadDashboard);
+    </script>
+</body>
+</html>

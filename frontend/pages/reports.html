@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar">
+                <ul class="sidebar-menu">
+                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
+                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
+                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
+                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
+                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
+                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
+                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
+                    <li><a href="#" class="active"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
+                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
+                </ul>
+            </div>
+
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header">
+                    <h1><i class="fas fa-file-chart-line me-2"></i>Reports</h1>
+                    <p>Generate and view business reports</p>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Reports page is under development.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script>
+        requireAuth();
+        async function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                try {
+                    await auth.logout();
+                    window.location.href = '../index.html';
+                } catch (error) {
+                    console.error('Logout failed');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
