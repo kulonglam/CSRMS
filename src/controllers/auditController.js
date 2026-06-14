@@ -17,6 +17,12 @@ const getAuditLogs = async (req, res, next) => {
     if (from_date)  { params.push(from_date);  sql += ` AND al.created_at >= $${params.length}`; }
     if (to_date)    { params.push(to_date);    sql += ` AND al.created_at <= $${params.length}`; }
 
+    // Sales agents may only view their own activity
+    if (req.user.role === 'sales_agent') {
+      params.push(req.user.id);
+      sql += ` AND al.user_id = $${params.length}`;
+    }
+
     sql += ' ORDER BY al.created_at DESC LIMIT 200';
     const result = await query(sql, params);
     res.json({ success: true, data: result.rows });

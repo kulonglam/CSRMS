@@ -206,6 +206,9 @@
                 <div class="modal-body" id="saleDetailBody">Loading...</div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-outline-primary" id="downloadPdfBtn" onclick="downloadReceipt()" style="display:none">
+                        <i class="fas fa-file-pdf me-1"></i>Download PDF
+                    </button>
                     <button type="button" class="btn btn-danger" id="voidSaleBtn" onclick="voidSale()" style="display:none">
                         <i class="fas fa-ban me-1"></i>Void Sale
                     </button>
@@ -225,6 +228,9 @@
                 <div class="modal-body receipt-box" id="receiptBody"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-outline-primary" onclick="downloadReceipt()">
+                        <i class="fas fa-file-pdf me-1"></i>Download PDF
+                    </button>
                     <button type="button" class="btn btn-primary" onclick="window.print()">
                         <i class="fas fa-print me-1"></i>Print
                     </button>
@@ -237,6 +243,7 @@
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
 
     <script>
         requireAuth();
@@ -249,10 +256,7 @@
         const canVoid = isManager;
         const canUsePOS = isAgent;
 
-        document.getElementById('navUserName').textContent = user?.full_name || 'User';
-        if (user?.branch_name) {
-            document.getElementById('branchName').textContent = `(${user.branch_name})`;
-        }
+        initPage('sales');
 
         if (isAgent) {
             document.getElementById('pageTitle').textContent = 'Sales';
@@ -278,43 +282,6 @@
         let allSales = [];
         let cart = [];
         let selectedSaleId = null;
-
-        const SIDEBARS = {
-            director: [
-                { href: 'dashboard-director.html', icon: 'fa-chart-line', label: 'Dashboard' },
-                { href: 'categories.html', icon: 'fa-list', label: 'Categories' },
-                { href: 'products.html', icon: 'fa-box', label: 'Products' },
-                { href: 'branches.html', icon: 'fa-sitemap', label: 'Branches' },
-                { href: 'users.html', icon: 'fa-users', label: 'Users' },
-                { href: 'inventory.html', icon: 'fa-warehouse', label: 'Inventory' },
-                { href: 'sales.html', icon: 'fa-shopping-cart', label: 'Sales', active: true },
-                { href: 'reports.html', icon: 'fa-file-chart-line', label: 'Reports' },
-                { href: 'audit-logs.html', icon: 'fa-history', label: 'Audit Logs' },
-            ],
-            manager: [
-                { href: 'dashboard-manager.html', icon: 'fa-chart-line', label: 'Dashboard' },
-                { href: 'products.html', icon: 'fa-box', label: 'Products' },
-                { href: 'inventory.html', icon: 'fa-warehouse', label: 'Inventory' },
-                { href: 'sales.html', icon: 'fa-shopping-cart', label: 'Sales', active: true },
-                { href: 'reports.html', icon: 'fa-file-chart-line', label: 'Reports' },
-                { href: 'audit-logs.html', icon: 'fa-history', label: 'Audit Logs' },
-            ],
-            sales_agent: [
-                { href: 'dashboard-agent.html', icon: 'fa-chart-line', label: 'Dashboard' },
-                { href: 'products.html', icon: 'fa-box', label: 'Available Products' },
-                { href: 'sales.html', icon: 'fa-shopping-cart', label: 'My Sales', active: true },
-                { href: 'audit-logs.html', icon: 'fa-history', label: 'Activity Log' },
-            ],
-        };
-
-        function renderSidebar() {
-            const items = SIDEBARS[userRole] || SIDEBARS.director;
-            document.getElementById('sidebarMenu').innerHTML = items.map(item => `
-                <li><a href="${item.href}"${item.active ? ' class="active"' : ''}>
-                    <i class="fas ${item.icon} me-2"></i>${item.label}
-                </a></li>
-            `).join('');
-        }
 
         function getCartTotal() {
             return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -523,6 +490,7 @@
         }
 
         function showReceipt(sale) {
+            selectedSaleId = sale.id;
             const change = parseFloat(sale.amount_paid) - parseFloat(sale.total_amount);
             document.getElementById('receiptBody').innerHTML = `
                 <div class="text-center mb-3">
@@ -616,10 +584,21 @@
             `).join('') || `<tr><td colspan="${colSpan}" class="text-center text-muted">No sales found</td></tr>`;
         }
 
+        async function downloadReceipt() {
+            if (!selectedSaleId) return;
+            try {
+                await api.downloadReceiptPDF(selectedSaleId);
+                showSuccess('Receipt downloaded');
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
         async function viewSale(id) {
             selectedSaleId = id;
             document.getElementById('saleDetailBody').innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
             document.getElementById('voidSaleBtn').style.display = 'none';
+            document.getElementById('downloadPdfBtn').style.display = 'none';
             new bootstrap.Modal(document.getElementById('saleDetailModal')).show();
 
             try {
@@ -629,6 +608,9 @@
                 const sale = response.data;
                 document.getElementById('saleDetailTitle').textContent = `Receipt ${sale.receipt_number}`;
 
+                if (sale.status === 'completed') {
+                    document.getElementById('downloadPdfBtn').style.display = 'inline-block';
+                }
                 if (canVoid && sale.status === 'completed') {
                     document.getElementById('voidSaleBtn').style.display = 'inline-block';
                 }
@@ -700,7 +682,6 @@
             }
         }
 
-        renderSidebar();
         window.addEventListener('DOMContentLoaded', () => {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('fromDate').value = today;

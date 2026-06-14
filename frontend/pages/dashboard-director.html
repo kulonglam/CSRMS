@@ -25,19 +25,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="#" class="active"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
-                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
-                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
-            </div>
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
 
             <!-- Main Content -->
             <div class="col-md-10 p-4">
@@ -69,7 +57,7 @@
                     <div class="col-md-3">
                         <div class="stat-card warning">
                             <div class="stat-value" id="procurementValue">USh 0</div>
-                            <div class="stat-label">Pending Procurements</div>
+                            <div class="stat-label">Procurement (30 Days)</div>
                         </div>
                     </div>
                 </div>
@@ -85,14 +73,13 @@
                                 <thead>
                                     <tr>
                                         <th>Product</th>
-                                        <th>Category</th>
-                                        <th>Stock</th>
-                                        <th>Price</th>
+                                        <th>Qty Sold</th>
+                                        <th>Revenue</th>
                                     </tr>
                                 </thead>
                                 <tbody id="topProductsTable">
                                     <tr>
-                                        <td colspan="4" class="text-center text-muted py-4">Loading...</td>
+                                        <td colspan="3" class="text-center text-muted py-4">Loading...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -128,21 +115,12 @@
                         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                             <h5 class="mb-3">Quick Actions</h5>
                             <div class="d-flex flex-wrap gap-2">
-                                <a href="products.html" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Add Product
-                                </a>
-                                <a href="categories.html" class="btn btn-success btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Add Category
-                                </a>
-                                <a href="users.html" class="btn btn-info btn-sm text-white">
-                                    <i class="fas fa-plus me-1"></i>Add User
-                                </a>
-                                <a href="branches.html" class="btn btn-warning btn-sm text-white">
-                                    <i class="fas fa-plus me-1"></i>Add Branch
-                                </a>
-                                <a href="reports.html" class="btn btn-secondary btn-sm">
-                                    <i class="fas fa-download me-1"></i>Export Report
-                                </a>
+                                <a href="reports.html" class="btn btn-primary btn-sm"><i class="fas fa-file-chart-line me-1"></i>View Reports</a>
+                                <a href="inventory.html" class="btn btn-info btn-sm text-white"><i class="fas fa-warehouse me-1"></i>Inventory</a>
+                                <a href="procurement.html" class="btn btn-success btn-sm"><i class="fas fa-truck me-1"></i>Procurement</a>
+                                <a href="users.html" class="btn btn-secondary btn-sm"><i class="fas fa-users me-1"></i>Manage Users</a>
+                                <a href="branches.html" class="btn btn-warning btn-sm text-white"><i class="fas fa-sitemap me-1"></i>Branches</a>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="fas fa-download me-1"></i>Export Report</button>
                             </div>
                         </div>
                     </div>
@@ -156,18 +134,14 @@
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
 
+    <script src="../js/nav.js"></script>
     <script>
-        // Protect page
         requireAuth();
-
-        // Check role
         if (!auth.hasRole('director')) {
             showError('Unauthorized: Director access required');
             setTimeout(() => window.location.href = '../index.html', 2000);
         }
-
-        // Set user name
-        document.getElementById('userName').textContent = auth.getCurrentUser()?.full_name || 'User';
+        initPage('dashboard');
 
         // Load dashboard data
         async function loadDashboard() {
@@ -192,19 +166,18 @@
             const topProductsHtml = (data.top_products || []).map(product => `
                 <tr>
                     <td>${product.name}</td>
-                    <td>${product.category_name}</td>
-                    <td>${product.quantity_in_stock}</td>
-                    <td>${formatCurrency(product.price)}</td>
+                    <td>${product.total_quantity}</td>
+                    <td>${formatCurrency(product.total_revenue)}</td>
                 </tr>
-            `).join('') || '<tr><td colspan="4" class="text-center text-muted">No data</td></tr>';
+            `).join('') || '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
             document.getElementById('topProductsTable').innerHTML = topProductsHtml;
 
             // Display sales trends
             const salesTrendsHtml = (data.sales_trends || []).map(trend => `
                 <tr>
                     <td>${formatDate(trend.date)}</td>
-                    <td>${trend.sales_count}</td>
-                    <td>${formatCurrency(trend.total_amount)}</td>
+                    <td>${trend.transactions}</td>
+                    <td>${formatCurrency(trend.daily_total)}</td>
                 </tr>
             `).join('') || '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
             document.getElementById('salesTrendsTable').innerHTML = salesTrendsHtml;

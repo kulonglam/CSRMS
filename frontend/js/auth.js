@@ -26,6 +26,8 @@ class AuthManager {
     this.user = user;
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('loginTime', Date.now().toString());
+    localStorage.setItem('lastActivity', Date.now().toString());
   }
 
   // Logout
@@ -45,6 +47,8 @@ class AuthManager {
     this.user = null;
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('loginTime');
+    localStorage.removeItem('lastActivity');
   }
 
   // Check if authenticated
@@ -116,7 +120,32 @@ const auth = new AuthManager();
 function requireAuth() {
   if (!auth.isAuthenticated()) {
     window.location.href = '../index.html';
+    return;
   }
+  checkSessionTimeout();
+}
+
+const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 minutes idle timeout
+
+function checkSessionTimeout() {
+  const loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
+  const lastActivity = parseInt(localStorage.getItem('lastActivity') || loginTime.toString(), 10);
+  const now = Date.now();
+
+  if (loginTime && now - lastActivity > SESSION_IDLE_MS) {
+    auth.clearSession();
+    alert('Session expired due to inactivity. Please login again.');
+    window.location.href = '../index.html';
+    return;
+  }
+
+  localStorage.setItem('lastActivity', now.toString());
+
+  ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
+    document.addEventListener(evt, () => {
+      localStorage.setItem('lastActivity', Date.now().toString());
+    }, { once: true });
+  });
 }
 
 // Show notifications

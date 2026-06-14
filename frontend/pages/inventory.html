@@ -1,8 +1,5 @@
-<!-- Stub pages for remaining modules -->
-<!-- These can be expanded with full functionality similar to the pages above -->
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,53 +12,377 @@
     <nav class="navbar navbar-custom">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
+                    <small class="ms-2" id="branchName"></small>
+                </span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
         </div>
     </nav>
 
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
-                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
-                    <li><a href="#" class="active"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
+                <ul class="sidebar-menu" id="sidebarMenu"></ul>
             </div>
 
             <div class="col-md-10 p-4">
                 <div class="dashboard-header">
                     <h1><i class="fas fa-warehouse me-2"></i>Inventory Management</h1>
-                    <p>Track and manage product inventory across branches</p>
+                    <p>Track and manage stock levels across branches</p>
                 </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Inventory management page is under development. Use Products and Branches pages to manage inventory.
+
+                <!-- Stats -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stat-card info">
+                            <div class="stat-value" id="statTotal">0</div>
+                            <div class="stat-label">Total Items</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card success">
+                            <div class="stat-value" id="statInStock">0</div>
+                            <div class="stat-label">In Stock</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card warning">
+                            <div class="stat-value" id="statLowStock">0</div>
+                            <div class="stat-label">Low Stock</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card danger">
+                            <div class="stat-value" id="statOutOfStock">0</div>
+                            <div class="stat-label">Out of Stock</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-3" id="inventoryTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#stockTab">Stock Levels</button>
+                    </li>
+                    <li class="nav-item" id="adjustmentsTabItem">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#adjustmentsTab" onclick="loadAdjustments()">Adjustment History</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Stock Levels -->
+                    <div class="tab-pane fade show active" id="stockTab">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search products..." onkeyup="debouncedLoad()">
+                            </div>
+                            <div class="col-md-3" id="branchFilterCol" style="display:none">
+                                <select class="form-control" id="branchFilter" onchange="loadInventory()">
+                                    <option value="">All Branches</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-control" id="stockFilter" onchange="loadInventory()">
+                                    <option value="">All Stock Levels</option>
+                                    <option value="low">Low Stock</option>
+                                    <option value="out">Out of Stock</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th id="branchCol">Branch</th>
+                                        <th>Quantity</th>
+                                        <th>Reorder Level</th>
+                                        <th>Stock Status</th>
+                                        <th>Value</th>
+                                        <th id="actionsCol">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventoryTable">
+                                    <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Adjustments -->
+                    <div class="tab-pane fade" id="adjustmentsTab">
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Product</th>
+                                        <th>Branch</th>
+                                        <th>Change</th>
+                                        <th>Reason</th>
+                                        <th>Adjusted By</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adjustmentsTable">
+                                    <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Adjust Stock Modal -->
+    <div class="modal fade" id="adjustModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-sliders-h me-2"></i>Adjust Stock</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="adjustForm" onsubmit="submitAdjustment(event)">
+                    <div class="modal-body">
+                        <div class="alert alert-light border mb-3">
+                            <strong id="adjustProductName"></strong>
+                            <div class="text-muted small">Current stock: <span id="adjustCurrentQty"></span></div>
+                        </div>
+                        <input type="hidden" id="adjustProductId">
+                        <div class="mb-3">
+                            <label class="form-label">Quantity Change</label>
+                            <input type="number" class="form-control" id="adjustQuantity" required placeholder="e.g. +10 or -5">
+                            <div class="form-text">Use positive numbers to add stock, negative to remove.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Reason</label>
+                            <select class="form-control" id="adjustReasonSelect" onchange="toggleCustomReason()">
+                                <option value="Stock received">Stock received</option>
+                                <option value="Damaged goods">Damaged goods</option>
+                                <option value="Inventory count correction">Inventory count correction</option>
+                                <option value="Expired products">Expired products</option>
+                                <option value="other">Other (specify)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="customReasonDiv" style="display:none">
+                            <label class="form-label">Custom Reason</label>
+                            <input type="text" class="form-control" id="adjustCustomReason">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Apply Adjustment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
+
     <script>
         requireAuth();
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    window.location.href = '../index.html';
-                } catch (error) {
-                    console.error('Logout failed');
+
+        const user = auth.getCurrentUser();
+        const userRole = user?.role;
+        const canAdjust = userRole === 'manager';
+        const isDirector = userRole === 'director';
+
+        initPage('inventory');
+
+        if (!canAdjust) {
+            document.getElementById('adjustmentsTabItem').style.display = 'none';
+            document.getElementById('actionsCol').style.display = 'none';
+        }
+        if (!isDirector) {
+            document.getElementById('branchCol').style.display = 'none';
+        }
+
+        let allInventory = [];
+
+        function getStockStatusBadge(status) {
+            const badges = {
+                in_stock: '<span class="badge bg-success">In Stock</span>',
+                low_stock: '<span class="badge bg-warning text-dark">Low Stock</span>',
+                out_of_stock: '<span class="badge bg-danger">Out of Stock</span>',
+            };
+            return badges[status] || `<span class="badge bg-secondary">${status}</span>`;
+        }
+
+        function updateStats(items) {
+            document.getElementById('statTotal').textContent = items.length;
+            document.getElementById('statInStock').textContent = items.filter(i => i.stock_status === 'in_stock').length;
+            document.getElementById('statLowStock').textContent = items.filter(i => i.stock_status === 'low_stock').length;
+            document.getElementById('statOutOfStock').textContent = items.filter(i => i.stock_status === 'out_of_stock').length;
+        }
+
+        async function loadBranches() {
+            if (!isDirector) return;
+            try {
+                const response = await api.getBranches();
+                if (response.success) {
+                    document.getElementById('branchFilterCol').style.display = 'block';
+                    document.getElementById('branchFilter').innerHTML =
+                        '<option value="">All Branches</option>' +
+                        response.data.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
                 }
+            } catch (error) {
+                console.error('Failed to load branches', error);
             }
         }
+
+        async function loadInventory() {
+            const params = {};
+            const search = document.getElementById('searchInput').value.trim();
+            const stockFilter = document.getElementById('stockFilter').value;
+
+            if (search) params.search = search;
+            if (stockFilter === 'low') params.low_stock = 'true';
+            if (stockFilter === 'out') params.out_of_stock = 'true';
+            if (isDirector && document.getElementById('branchFilter').value) {
+                params.branch_id = document.getElementById('branchFilter').value;
+            }
+
+            try {
+                const response = await api.getInventory(params);
+                if (response.success) {
+                    allInventory = response.data || [];
+                    updateStats(allInventory);
+                    displayInventory(allInventory);
+                }
+            } catch (error) {
+                showError('Failed to load inventory');
+            }
+        }
+
+        function displayInventory(items) {
+            const colSpan = 6 + (isDirector ? 1 : 0) + (canAdjust ? 1 : 0);
+            const showBranch = isDirector;
+
+            const html = items.map(item => {
+                const value = item.quantity_available * parseFloat(item.cost_price || 0);
+                return `
+                    <tr>
+                        <td><strong>${item.product_name}</strong></td>
+                        <td>${item.category_name || 'N/A'}</td>
+                        ${showBranch ? `<td>${item.branch_name}</td>` : ''}
+                        <td><strong>${item.quantity_available}</strong></td>
+                        <td>${item.reorder_level}</td>
+                        <td>${getStockStatusBadge(item.stock_status)}</td>
+                        <td>${formatCurrency(value)}</td>
+                        ${canAdjust ? `
+                        <td>
+                            <button class="btn btn-sm btn-warning" onclick="openAdjustModal(${item.product_id}, '${item.product_name.replace(/'/g, "\\'")}', ${item.quantity_available})">
+                                <i class="fas fa-sliders-h"></i> Adjust
+                            </button>
+                        </td>` : ''}
+                    </tr>
+                `;
+            }).join('') || `<tr><td colspan="${colSpan}" class="text-center text-muted">No inventory records found</td></tr>`;
+
+            document.getElementById('inventoryTable').innerHTML = html;
+        }
+
+        const debouncedLoad = debounce(loadInventory, 300);
+
+        function openAdjustModal(productId, productName, currentQty) {
+            document.getElementById('adjustProductId').value = productId;
+            document.getElementById('adjustProductName').textContent = productName;
+            document.getElementById('adjustCurrentQty').textContent = currentQty;
+            document.getElementById('adjustQuantity').value = '';
+            document.getElementById('adjustReasonSelect').value = 'Stock received';
+            document.getElementById('adjustCustomReason').value = '';
+            document.getElementById('customReasonDiv').style.display = 'none';
+            new bootstrap.Modal(document.getElementById('adjustModal')).show();
+        }
+
+        function toggleCustomReason() {
+            const isOther = document.getElementById('adjustReasonSelect').value === 'other';
+            document.getElementById('customReasonDiv').style.display = isOther ? 'block' : 'none';
+        }
+
+        async function submitAdjustment(event) {
+            event.preventDefault();
+
+            const product_id = parseInt(document.getElementById('adjustProductId').value);
+            const quantity = parseInt(document.getElementById('adjustQuantity').value);
+            let reason = document.getElementById('adjustReasonSelect').value;
+            if (reason === 'other') {
+                reason = document.getElementById('adjustCustomReason').value.trim();
+            }
+
+            if (!quantity || quantity === 0) {
+                showError('Quantity change cannot be zero');
+                return;
+            }
+            if (!reason) {
+                showError('Please provide a reason');
+                return;
+            }
+
+            try {
+                const response = await api.adjustStock({ product_id, quantity, reason });
+                if (response.success) {
+                    showSuccess('Stock adjusted successfully');
+                    bootstrap.Modal.getInstance(document.getElementById('adjustModal')).hide();
+                    loadInventory();
+                } else {
+                    showError(response.message);
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function loadAdjustments() {
+            if (!canAdjust) return;
+            try {
+                const response = await api.getStockAdjustments();
+                const adjustments = response.success ? response.data : [];
+
+                document.getElementById('adjustmentsTable').innerHTML = adjustments.map(adj => `
+                    <tr>
+                        <td>${formatDate(adj.created_at)}</td>
+                        <td>${adj.product_name}</td>
+                        <td>${adj.branch_name}</td>
+                        <td>
+                            <span class="badge ${adj.quantity > 0 ? 'bg-success' : 'bg-danger'}">
+                                ${adj.quantity > 0 ? '+' : ''}${adj.quantity}
+                            </span>
+                        </td>
+                        <td>${adj.reason}</td>
+                        <td>${adj.adjusted_by_name}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="6" class="text-center text-muted">No adjustments recorded</td></tr>';
+            } catch (error) {
+                showError('Failed to load adjustments');
+            }
+        }
+
+        async function handleLogout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            try {
+                await auth.logout();
+                showSuccess('Logged out successfully');
+                setTimeout(() => window.location.href = '../index.html', 1000);
+            } catch (error) {
+                showError('Logout failed');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadBranches();
+            loadInventory();
+        });
     </script>
 </body>
 </html>

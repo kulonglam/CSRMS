@@ -1,19 +1,16 @@
 // API Configuration
 const API_BASE_URL = 'http://localhost:5000/api';
 
-// API Helper Class
 class APIClient {
   constructor() {
     this.baseURL = API_BASE_URL;
   }
 
-  // Get authorization header
   getAuthHeader() {
     const token = localStorage.getItem('token');
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
-  // Generic fetch wrapper
   async request(method, endpoint, data = null) {
     const url = `${this.baseURL}${endpoint}`;
     const options = {
@@ -24,7 +21,7 @@ class APIClient {
       },
     };
 
-    if (data && (method === 'POST' || method === 'PUT')) {
+    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
       options.body = JSON.stringify(data);
     }
 
@@ -43,7 +40,24 @@ class APIClient {
     }
   }
 
-  // Authentication APIs
+  async downloadFile(endpoint, filename) {
+    const url = `${this.baseURL}${endpoint}`;
+    const response = await fetch(url, { headers: { ...this.getAuthHeader() } });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(result.message || `HTTP ${response.status}`);
+    }
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  }
+
+  // Authentication
   async login(username, password) {
     return this.request('POST', '/auth/login', { username, password });
   }
@@ -56,7 +70,11 @@ class APIClient {
     return this.request('GET', '/auth/me');
   }
 
-  // Categories APIs
+  async changePassword(current_password, new_password) {
+    return this.request('POST', '/auth/change-password', { current_password, new_password });
+  }
+
+  // Categories
   async getCategories() {
     return this.request('GET', '/categories');
   }
@@ -73,9 +91,14 @@ class APIClient {
     return this.request('DELETE', `/categories/${id}`);
   }
 
-  // Products APIs
-  async getProducts() {
-    return this.request('GET', '/products');
+  // Products
+  async getProducts(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/products${query ? '?' + query : ''}`);
+  }
+
+  async getProduct(id) {
+    return this.request('GET', `/products/${id}`);
   }
 
   async createProduct(data) {
@@ -90,11 +113,31 @@ class APIClient {
     return this.request('DELETE', `/products/${id}`);
   }
 
-  async updateProductPrice(id, price) {
-    return this.request('PUT', `/products/${id}/price`, { price });
+  async updateProductPrice(id, selling_price) {
+    return this.request('PATCH', `/products/${id}/price`, { selling_price });
   }
 
-  // Users APIs
+  async getProductBarcodes(productId) {
+    return this.request('GET', `/products/${productId}/barcodes`);
+  }
+
+  async addProductBarcode(productId, barcode_number) {
+    return this.request('POST', `/products/${productId}/barcodes`, { barcode_number });
+  }
+
+  async updateBarcode(id, data) {
+    return this.request('PUT', `/barcodes/${id}`, data);
+  }
+
+  async deleteBarcode(id) {
+    return this.request('DELETE', `/barcodes/${id}`);
+  }
+
+  async lookupBarcode(barcode) {
+    return this.request('GET', `/barcodes/lookup/${encodeURIComponent(barcode)}`);
+  }
+
+  // Users
   async getUsers() {
     return this.request('GET', '/users');
   }
@@ -107,11 +150,11 @@ class APIClient {
     return this.request('PUT', `/users/${id}`, data);
   }
 
-  async resetUserPassword(id, password) {
-    return this.request('POST', `/users/${id}/reset-password`, { password });
+  async resetUserPassword(id, new_password) {
+    return this.request('POST', `/users/${id}/reset-password`, { new_password });
   }
 
-  // Branches APIs
+  // Branches
   async getBranches() {
     return this.request('GET', '/branches');
   }
@@ -128,29 +171,94 @@ class APIClient {
     return this.request('DELETE', `/branches/${id}`);
   }
 
-  // Inventory APIs
-  async getInventory() {
-    return this.request('GET', '/inventory');
+  // Inventory
+  async getInventory(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/inventory${query ? '?' + query : ''}`);
   }
 
-  async updateInventory(id, data) {
-    return this.request('PUT', `/inventory/${id}`, data);
+  async adjustStock(data) {
+    return this.request('POST', '/inventory/adjust', data);
   }
 
-  // Sales APIs
-  async getSales() {
-    return this.request('GET', '/sales');
+  async getStockAdjustments() {
+    return this.request('GET', '/inventory/adjustments');
+  }
+
+  // Procurement
+  async getProcurements(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/procurements${query ? '?' + query : ''}`);
+  }
+
+  async getProcurement(id) {
+    return this.request('GET', `/procurements/${id}`);
+  }
+
+  async createProcurement(data) {
+    return this.request('POST', '/procurements', data);
+  }
+
+  // Sales
+  async getSales(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/sales${query ? '?' + query : ''}`);
+  }
+
+  async getSale(id) {
+    return this.request('GET', `/sales/${id}`);
   }
 
   async createSale(data) {
     return this.request('POST', '/sales', data);
   }
 
-  async updateSale(id, data) {
-    return this.request('PUT', `/sales/${id}`, data);
+  async voidSale(id) {
+    return this.request('PATCH', `/sales/${id}/void`);
   }
 
-  // Dashboard APIs
+  // Cashier balancing
+  async getCashierBalances(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/cashier-balancing${query ? '?' + query : ''}`);
+  }
+
+  async getAgentDailySummary(agentId, date) {
+    return this.request('GET', `/cashier-balancing/agent/${agentId}/summary?date=${date}`);
+  }
+
+  async submitCashierBalance(data) {
+    return this.request('POST', '/cashier-balancing', data);
+  }
+
+  async approveCashierBalance(id) {
+    return this.request('PATCH', `/cashier-balancing/${id}/approve`);
+  }
+
+  // Receipts
+  async downloadReceiptPDF(saleId) {
+    return this.downloadFile(`/receipts/${saleId}/pdf`, `receipt-${saleId}.pdf`);
+  }
+
+  // Notifications
+  async getNotifications(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/notifications${query ? '?' + query : ''}`);
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request('GET', '/notifications/unread-count');
+  }
+
+  async markNotificationRead(id) {
+    return this.request('PATCH', `/notifications/${id}/read`);
+  }
+
+  async markAllNotificationsRead() {
+    return this.request('PATCH', '/notifications/read-all');
+  }
+
+  // Dashboards
   async getDirectorDashboard() {
     return this.request('GET', '/dashboard/director');
   }
@@ -163,16 +271,42 @@ class APIClient {
     return this.request('GET', '/dashboard/agent');
   }
 
-  // Reports APIs
-  async getReports() {
-    return this.request('GET', '/reports');
+  // Reports
+  async getDailySalesReport(date, branchId = null) {
+    let url = `/reports/sales/daily?date=${date}`;
+    if (branchId) url += `&branch_id=${branchId}`;
+    return this.request('GET', url);
   }
 
-  // Audit Logs APIs
-  async getAuditLogs() {
-    return this.request('GET', '/audit-logs');
+  async getSalesTrends(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/reports/sales/trends${query ? '?' + query : ''}`);
+  }
+
+  async getInventoryReport(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/reports/inventory${query ? '?' + query : ''}`);
+  }
+
+  async getProcurementReport(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/reports/procurement${query ? '?' + query : ''}`);
+  }
+
+  async getCashierBalancingReport(date) {
+    return this.request('GET', `/reports/cashier-balancing?date=${date}`);
+  }
+
+  async getCompanyPerformanceReport(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/reports/company/performance${query ? '?' + query : ''}`);
+  }
+
+  // Audit logs
+  async getAuditLogs(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request('GET', `/audit-logs${query ? '?' + query : ''}`);
   }
 }
 
-// Create global API instance
 const api = new APIClient();

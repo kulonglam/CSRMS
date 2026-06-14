@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cashier Balancing - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3"><i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span><small class="ms-2" id="branchName"></small></span>
+                <a href="notifications.html" class="btn btn-outline-light btn-sm position-relative"><i class="fas fa-bell"></i><span id="notificationBadge" class="badge bg-danger position-absolute top-0 start-100 translate-middle" style="display:none">0</span></a>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header"><h1><i class="fas fa-cash-register me-2"></i>Cashier Balancing</h1><p>Verify and reconcile daily cashier sales</p></div>
+
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#balanceTab">Submit Balance</button></li>
+                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#historyTab" onclick="loadHistory()">Balance History</button></li>
+                </ul>
+
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="balanceTab">
+                        <div class="row mb-3">
+                            <div class="col-md-3"><input type="date" class="form-control" id="balanceDate" onchange="loadAgentSummary()"></div>
+                            <div class="col-md-4">
+                                <select class="form-control" id="agentSelect" onchange="loadAgentSummary()"><option value="">Select Cashier</option></select>
+                            </div>
+                        </div>
+
+                        <div class="row" id="summarySection" style="display:none">
+                            <div class="col-md-4"><div class="stat-card info"><div class="stat-value" id="expectedAmount">USh 0</div><div class="stat-label">Expected (Sales)</div></div></div>
+                            <div class="col-md-4"><div class="stat-card success"><div class="stat-value" id="transactionCount">0</div><div class="stat-label">Transactions</div></div></div>
+                        </div>
+
+                        <div class="table-container mt-3 mb-3" id="salesListSection" style="display:none">
+                            <div class="p-3 border-bottom"><h6 class="mb-0">Sales for Selected Date</h6></div>
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Receipt</th><th>Time</th><th>Amount</th><th>Paid</th><th>Change</th></tr></thead>
+                                <tbody id="agentSalesTable"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-container p-3" id="submitSection" style="display:none">
+                            <h6>Submit Cash Collected</h6>
+                            <form onsubmit="submitBalance(event)" class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Cash Submitted</label>
+                                    <input type="number" class="form-control" id="submittedAmount" step="0.01" min="0" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Notes</label>
+                                    <input type="text" class="form-control" id="balanceNotes" placeholder="Optional notes">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">Submit</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="historyTab">
+                        <div class="table-container">
+                            <table class="table table-hover">
+                                <thead><tr><th>Date</th><th>Agent</th><th>Expected</th><th>Submitted</th><th>Variance</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody id="historyTable"><tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
+    <script>
+        requireAuth();
+        if (!canManage()) { showError('Manager access required'); setTimeout(() => auth.redirectToDashboard(), 1500); }
+        initPage('cashier-balancing');
+
+        let agents = [];
+
+        async function loadAgents() {
+            const res = await api.getUsers();
+            if (res.success) {
+                agents = (res.data || []).filter(u => u.role === 'sales_agent');
+                document.getElementById('agentSelect').innerHTML = '<option value="">Select Cashier</option>' +
+                    agents.map(a => `<option value="${a.id}">${a.full_name}</option>`).join('');
+            }
+        }
+
+        async function loadAgentSummary() {
+            const agentId = document.getElementById('agentSelect').value;
+            const date = document.getElementById('balanceDate').value;
+            if (!agentId || !date) return;
+            try {
+                const res = await api.getAgentDailySummary(agentId, date);
+                if (res.success) {
+                    const d = res.data;
+                    document.getElementById('summarySection').style.display = 'flex';
+                    document.getElementById('salesListSection').style.display = 'block';
+                    document.getElementById('submitSection').style.display = 'block';
+                    document.getElementById('expectedAmount').textContent = formatCurrency(d.expected_amount);
+                    document.getElementById('transactionCount').textContent = d.transaction_count;
+                    document.getElementById('submittedAmount').value = d.expected_amount || '';
+                    document.getElementById('agentSalesTable').innerHTML = (d.sales || []).map(s => `
+                        <tr><td><code>${s.receipt_number}</code></td><td>${formatDate(s.created_at)}</td>
+                        <td>${formatCurrency(s.total_amount)}</td><td>${formatCurrency(s.amount_paid)}</td><td>${formatCurrency(s.change_given)}</td></tr>
+                    `).join('') || '<tr><td colspan="5" class="text-muted text-center">No sales</td></tr>';
+                }
+            } catch (e) { showError(e.message); }
+        }
+
+        async function submitBalance(e) {
+            e.preventDefault();
+            const data = {
+                sales_agent_id: parseInt(document.getElementById('agentSelect').value),
+                submitted_amount: parseFloat(document.getElementById('submittedAmount').value),
+                balance_date: document.getElementById('balanceDate').value,
+                notes: document.getElementById('balanceNotes').value.trim() || null,
+            };
+            try {
+                const res = await api.submitCashierBalance(data);
+                if (res.success) { showSuccess(res.message); loadHistory(); }
+            } catch (err) { showError(err.message); }
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await api.getCashierBalances();
+                const items = res.success ? res.data : [];
+                document.getElementById('historyTable').innerHTML = items.map(r => `
+                    <tr>
+                        <td>${formatDate(r.balance_date)}</td><td>${r.agent_name}</td>
+                        <td>${formatCurrency(r.expected_amount)}</td><td>${formatCurrency(r.submitted_amount)}</td>
+                        <td>${formatCurrency(r.variance)}</td>
+                        <td>${r.status === 'approved' ? '<span class="badge bg-success">Approved</span>' : '<span class="badge bg-warning text-dark">Flagged</span>'}</td>
+                        <td>${r.status === 'flagged' ? `<button class="btn btn-sm btn-success" onclick="approveBalance(${r.id})">Approve</button>` : ''}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="7" class="text-center text-muted">No records</td></tr>';
+            } catch (e) { showError(e.message); }
+        }
+
+        async function approveBalance(id) {
+            if (!confirm('Approve this balance record?')) return;
+            try {
+                const res = await api.approveCashierBalance(id);
+                if (res.success) { showSuccess('Balance approved'); loadHistory(); }
+            } catch (e) { showError(e.message); }
+        }
+
+        async function handleLogout() {
+            if (!confirm('Logout?')) return;
+            await auth.logout(); window.location.href = '../index.html';
+        }
+
+        document.getElementById('balanceDate').value = new Date().toISOString().split('T')[0];
+        loadAgents();
+    </script>
+</body>
+</html>

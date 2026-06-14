@@ -25,14 +25,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="#" class="active"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Available Products</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>My Sales</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Activity Log</a></li>
-                </ul>
-            </div>
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
 
             <!-- Main Content -->
             <div class="col-md-10 p-4">
@@ -124,15 +117,9 @@
                         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                             <h5 class="mb-3">Quick Actions</h5>
                             <div class="d-flex flex-wrap gap-2">
-                                <button class="btn btn-success btn-sm" onclick="alert('POS System coming soon')">
-                                    <i class="fas fa-cash-register me-1"></i>Open POS
-                                </button>
-                                <a href="sales.html" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Record Sale
-                                </a>
-                                <button class="btn btn-info btn-sm text-white" onclick="printReceipt()">
-                                    <i class="fas fa-print me-1"></i>Print Receipt
-                                </button>
+                                <a href="sales.html" class="btn btn-success btn-sm"><i class="fas fa-cash-register me-1"></i>Open POS</a>
+                                <a href="sales.html" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i>Record Sale</a>
+                                <a href="change-password.html" class="btn btn-secondary btn-sm"><i class="fas fa-key me-1"></i>Change Password</a>
                             </div>
                         </div>
                     </div>
@@ -146,18 +133,14 @@
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
 
+    <script src="../js/nav.js"></script>
     <script>
-        // Protect page
         requireAuth();
-
-        // Check role
         if (!auth.hasRole(['sales_agent', 'manager', 'director'])) {
             showError('Unauthorized: Sales Agent access required');
             setTimeout(() => window.location.href = '../index.html', 2000);
         }
-
-        // Set user info
-        document.getElementById('userName').textContent = auth.getCurrentUser()?.full_name || 'User';
+        initPage('dashboard');
 
         let allProducts = [];
 
@@ -185,11 +168,11 @@
 
         function displayDashboard(data) {
             // Today's Stats
-            document.getElementById('todayTransactions').textContent = data.todays_stats?.transaction_count || 0;
+            document.getElementById('todayTransactions').textContent = data.todays_stats?.transactions || 0;
             document.getElementById('todaySales').textContent = formatCurrency(data.todays_stats?.total_sales || 0);
 
-            const avgSale = data.todays_stats?.transaction_count > 0
-                ? (data.todays_stats?.total_sales / data.todays_stats?.transaction_count)
+            const avgSale = data.todays_stats?.transactions > 0
+                ? (data.todays_stats?.total_sales / data.todays_stats?.transactions)
                 : 0;
             document.getElementById('avgTransaction').textContent = formatCurrency(avgSale);
 
@@ -248,11 +231,7 @@
         }
 
         function viewSaleDetails(saleId) {
-            alert(`Sale Details: ${saleId}\n\nFull transaction details coming soon.`);
-        }
-
-        function printReceipt() {
-            alert('Print Receipt\n\nReceipt printing functionality coming soon.');
+            window.location.href = `sales.html#sale-${saleId}`;
         }
 
         async function handleLogout() {

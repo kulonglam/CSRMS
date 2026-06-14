@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,31 +12,59 @@
     <nav class="navbar navbar-custom">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
+                    <small class="ms-2" id="branchName"></small>
+                </span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
         </div>
     </nav>
 
     <div class="container-fluid">
         <div class="row">
             <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
-                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
-                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="#" class="active"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
+                <ul class="sidebar-menu" id="sidebarMenu"></ul>
             </div>
 
             <div class="col-md-10 p-4">
                 <div class="dashboard-header">
-                    <h1><i class="fas fa-history me-2"></i>Audit Logs</h1>
-                    <p>View system activity and changes</p>
+                    <h1><i class="fas fa-history me-2"></i><span id="pageTitle">Audit Logs</span></h1>
+                    <p id="pageSubtitle">View system activity and changes</p>
                 </div>
+
+                <!-- Filters -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" id="actionFilter" placeholder="Filter by action..." onkeyup="debouncedLoad()">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-control" id="tableFilter" onchange="loadAuditLogs()">
+                            <option value="">All Tables</option>
+                            <option value="products">Products</option>
+                            <option value="categories">Categories</option>
+                            <option value="users">Users</option>
+                            <option value="branches">Branches</option>
+                            <option value="sales">Sales</option>
+                            <option value="inventory">Inventory</option>
+                            <option value="product_barcodes">Barcodes</option>
+                            <option value="cashier_balancing">Cashier Balancing</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" class="form-control" id="fromDate" onchange="loadAuditLogs()">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" class="form-control" id="toDate" onchange="loadAuditLogs()">
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+
                 <div class="table-container">
                     <table class="table table-hover">
                         <thead>
@@ -44,15 +72,17 @@
                                 <th>ID</th>
                                 <th>Action</th>
                                 <th>User</th>
+                                <th>Table</th>
                                 <th>Timestamp</th>
                                 <th>Details</th>
                             </tr>
                         </thead>
                         <tbody id="auditTable">
-                            <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
+                <p class="text-muted small mt-2" id="logCount"></p>
             </div>
         </div>
     </div>
@@ -65,9 +95,7 @@
                     <h5 class="modal-title">Audit Log Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="detailsContent"></div>
-                </div>
+                <div class="modal-body" id="detailsContent"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
@@ -75,102 +103,170 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
+
     <script>
         requireAuth();
 
-        // Format JSON data into readable key-value pairs
-        function formatJsonData(jsonData) {
-            if (!jsonData) return '-';
+        const user = auth.getCurrentUser();
+        const userRole = user?.role;
+        const isAgent = userRole === 'sales_agent';
+
+        if (!auth.hasRole(['director', 'manager', 'sales_agent'])) {
+            showError('Unauthorized access');
+            setTimeout(() => auth.redirectToDashboard(), 1500);
+        }
+
+        initPage('audit-logs');
+        if (isAgent) {
+            document.getElementById('pageTitle').textContent = 'Activity Log';
+            document.getElementById('pageSubtitle').textContent = 'View your recent system activity';
+        }
+
+        let allLogs = [];
+
+        function parseJsonField(data) {
+            if (!data) return null;
+            if (typeof data === 'object') return data;
             try {
-                const obj = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
-                return Object.entries(obj)
-                    .map(([key, value]) => `<strong>${key}:</strong> ${JSON.stringify(value)}`)
-                    .join('<br>');
-            } catch (e) {
-                return JSON.stringify(jsonData);
+                return JSON.parse(data);
+            } catch {
+                return null;
             }
         }
 
-        // Show details in modal
-        function showDetails(log) {
-            const newValues = log.new_values ? formatJsonData(log.new_values) : null;
-            const oldValues = log.old_values ? formatJsonData(log.old_values) : null;
-            
+        function formatJsonData(jsonData) {
+            const obj = parseJsonField(jsonData);
+            if (!obj) return '-';
+            return Object.entries(obj)
+                .map(([key, value]) => `<strong>${key}:</strong> ${typeof value === 'object' ? JSON.stringify(value) : value}`)
+                .join('<br>');
+        }
+
+        function getLogSummary(log) {
+            const data = parseJsonField(log.new_values) || parseJsonField(log.old_values);
+            if (!data) return log.table_name ? `Record #${log.record_id || '—'}` : '—';
+            const keys = Object.keys(data);
+            return keys.slice(0, 2).map(k => `${k}: ${data[k]}`).join(', ') || '—';
+        }
+
+        function getActionBadge(action) {
+            const map = {
+                CREATE: 'bg-success',
+                UPDATE: 'bg-warning text-dark',
+                DELETE: 'bg-danger',
+                CREATE_SALE: 'bg-success',
+                VOID_SALE: 'bg-danger',
+                STOCK_ADJUSTMENT: 'bg-info',
+                LOGIN: 'bg-primary',
+                LOGOUT: 'bg-secondary',
+            };
+            const prefix = Object.keys(map).find(k => action.startsWith(k));
+            const cls = prefix ? map[prefix] : 'bg-secondary';
+            return `<span class="badge ${cls}">${action}</span>`;
+        }
+
+        function showDetails(id) {
+            const log = allLogs.find(l => l.id === id);
+            if (!log) return;
+
+            const newValues = formatJsonData(log.new_values);
+            const oldValues = formatJsonData(log.old_values);
+
             let content = `
                 <div class="details-section">
                     <h6>Basic Information</h6>
-                    <p><strong>ID:</strong> ${log.id}</p>
-                    <p><strong>Action:</strong> ${log.action}</p>
-                    <p><strong>User:</strong> ${log.user_name || 'System'}</p>
-                    <p><strong>Table:</strong> ${log.table_name || '-'}</p>
-                    <p><strong>Record ID:</strong> ${log.record_id || '-'}</p>
-                    <p><strong>Timestamp:</strong> ${formatDate(log.created_at)}</p>
-                    <p><strong>IP Address:</strong> ${log.ip_address || '-'}</p>
-                </div>
-            `;
-            
-            if (oldValues) {
-                content += `<div class="details-section mt-3">
-                    <h6>Previous Values</h6>
-                    <div class="bg-light p-3 rounded">${oldValues}</div>
+                    <table class="table table-sm">
+                        <tr><th style="width:30%">ID</th><td>${log.id}</td></tr>
+                        <tr><th>Action</th><td>${getActionBadge(log.action)}</td></tr>
+                        <tr><th>User</th><td>${log.user_name || 'System'}${log.user_role ? ` (${log.user_role})` : ''}</td></tr>
+                        <tr><th>Table</th><td>${log.table_name || '—'}</td></tr>
+                        <tr><th>Record ID</th><td>${log.record_id ?? '—'}</td></tr>
+                        <tr><th>Timestamp</th><td>${formatDate(log.created_at)}</td></tr>
+                        <tr><th>IP Address</th><td>${log.ip_address || '—'}</td></tr>
+                    </table>
                 </div>`;
+
+            if (oldValues !== '-') {
+                content += `<div class="mt-3"><h6>Previous Values</h6><div class="bg-light p-3 rounded">${oldValues}</div></div>`;
             }
-            
-            if (newValues) {
-                content += `<div class="details-section mt-3">
-                    <h6>New Values</h6>
-                    <div class="bg-light p-3 rounded">${newValues}</div>
-                </div>`;
+            if (newValues !== '-') {
+                content += `<div class="mt-3"><h6>New Values</h6><div class="bg-light p-3 rounded">${newValues}</div></div>`;
             }
-            
+
             document.getElementById('detailsContent').innerHTML = content;
             new bootstrap.Modal(document.getElementById('detailsModal')).show();
         }
 
         async function loadAuditLogs() {
+            const params = {};
+            const action = document.getElementById('actionFilter').value.trim();
+            const table_name = document.getElementById('tableFilter').value;
+            const from_date = document.getElementById('fromDate').value;
+            const to_date = document.getElementById('toDate').value;
+
+            if (action) params.action = action;
+            if (table_name) params.table_name = table_name;
+            if (from_date) params.from_date = from_date;
+            if (to_date) params.to_date = to_date + 'T23:59:59';
+
             try {
-                const data = await api.getAuditLogs();
+                const data = await api.getAuditLogs(params);
                 if (data.success) {
-                    displayLogs(data.data || []);
+                    allLogs = data.data || [];
+                    displayLogs(allLogs);
+                    document.getElementById('logCount').textContent =
+                        `Showing ${allLogs.length} log${allLogs.length !== 1 ? 's' : ''} (most recent 200)`;
                 } else {
                     showError(data.message || 'Failed to load audit logs');
-                    document.getElementById('auditTable').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error loading logs: ' + (data.message || 'Unknown error') + '</td></tr>';
                 }
             } catch (error) {
-                console.error('Failed to load audit logs', error);
                 showError('Failed to load audit logs: ' + error.message);
-                document.getElementById('auditTable').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error: ' + error.message + '</td></tr>';
+                document.getElementById('auditTable').innerHTML =
+                    `<tr><td colspan="6" class="text-center text-danger">${error.message}</td></tr>`;
             }
         }
 
         function displayLogs(logs) {
-            const html = logs.map(log => {
-                const summary = log.new_values ? Object.keys(JSON.parse(log.new_values)).slice(0, 2).join(', ') : 
-                               (log.old_values ? Object.keys(JSON.parse(log.old_values)).slice(0, 2).join(', ') : '-');
-                return `
+            document.getElementById('auditTable').innerHTML = logs.map(log => `
                 <tr>
                     <td>${log.id}</td>
-                    <td>${log.action}</td>
+                    <td>${getActionBadge(log.action)}</td>
                     <td>${log.user_name || 'System'}</td>
+                    <td>${log.table_name || '—'}</td>
                     <td>${formatDate(log.created_at)}</td>
-                    <td><button class="btn btn-sm btn-primary" onclick="showDetails(${JSON.stringify(log).replace(/"/g, '&quot;')})">View Details</button></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="showDetails(${log.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <small class="text-muted ms-1">${getLogSummary(log)}</small>
+                    </td>
                 </tr>
-            `;
-            }).join('') || '<tr><td colspan="5" class="text-center text-muted">No logs found</td></tr>';
-            document.getElementById('auditTable').innerHTML = html;
+            `).join('') || '<tr><td colspan="6" class="text-center text-muted">No logs found</td></tr>';
         }
 
+        function clearFilters() {
+            document.getElementById('actionFilter').value = '';
+            document.getElementById('tableFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            loadAuditLogs();
+        }
+
+        const debouncedLoad = debounce(loadAuditLogs, 300);
+
         async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    window.location.href = '../index.html';
-                } catch (error) {
-                    console.error('Logout failed');
-                }
+            if (!confirm('Are you sure you want to logout?')) return;
+            try {
+                await auth.logout();
+                showSuccess('Logged out successfully');
+                setTimeout(() => window.location.href = '../index.html', 1000);
+            } catch (error) {
+                showError('Logout failed');
             }
         }
 

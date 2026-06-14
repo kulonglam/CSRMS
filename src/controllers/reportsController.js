@@ -2,11 +2,18 @@ const { query } = require('../config/database');
 
 // ─── MANAGER REPORTS ────────────────────────────────────────────
 
-// GET /api/reports/sales/daily?date=YYYY-MM-DD
+// GET /api/reports/sales/daily?date=YYYY-MM-DD&branch_id=
 const dailySalesReport = async (req, res, next) => {
   try {
-    const branch_id = req.user.branch_id;
+    const branch_id = req.user.role === 'director' ? req.query.branch_id : req.user.branch_id;
     const date = req.query.date || new Date().toISOString().split('T')[0];
+
+    if (!branch_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Branch ID is required for daily sales report.',
+      });
+    }
 
     const summary = await query(
       `SELECT COALESCE(SUM(s.total_amount), 0) AS total_revenue,

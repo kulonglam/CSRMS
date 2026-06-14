@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,58 +7,574 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .trend-bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding-top: 10px; }
+        .trend-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+        .trend-bar { width: 100%; max-width: 48px; background: var(--secondary-color); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s; }
+        .trend-label { font-size: 10px; color: #666; margin-top: 4px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .report-section { min-height: 200px; }
+        @media print {
+            .sidebar, .navbar-custom, .nav-tabs, .no-print { display: none !important; }
+            .col-md-10 { width: 100% !important; max-width: 100% !important; }
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-custom">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
+                    <small class="ms-2" id="branchName"></small>
+                </span>
+                <button class="btn btn-outline-light btn-sm no-print" onclick="handleLogout()">Logout</button>
+            </div>
         </div>
     </nav>
 
     <div class="container-fluid">
         <div class="row">
-            <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="categories.html"><i class="fas fa-list me-2"></i>Categories</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
-                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
-                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="#" class="active"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
+            <div class="col-md-2 sidebar no-print">
+                <ul class="sidebar-menu" id="sidebarMenu"></ul>
             </div>
 
             <div class="col-md-10 p-4">
-                <div class="dashboard-header">
-                    <h1><i class="fas fa-file-chart-line me-2"></i>Reports</h1>
-                    <p>Generate and view business reports</p>
+                <div class="dashboard-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-file-chart-line me-2"></i>Reports</h1>
+                        <p>Generate and view business reports</p>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i>Print Report
+                    </button>
                 </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
-                    Reports page is under development.
+
+                <ul class="nav nav-tabs mb-3 no-print" id="reportTabs"></ul>
+
+                <div class="tab-content report-section" id="reportContent">
+                    <div class="text-center text-muted py-5">Select a report tab to load data.</div>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
+
     <script>
         requireAuth();
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    window.location.href = '../index.html';
-                } catch (error) {
-                    console.error('Logout failed');
+
+        const user = auth.getCurrentUser();
+        const userRole = user?.role;
+        const isDirector = userRole === 'director';
+        const isManager = userRole === 'manager';
+
+        if (!isDirector && !isManager) {
+            showError('Unauthorized access');
+            setTimeout(() => auth.redirectToDashboard(), 1500);
+        }
+
+        initPage('reports');
+
+        let branches = [];
+        let activeReport = null;
+
+        const REPORT_TABS = isDirector ? [
+            { id: 'company', label: 'Company Performance', icon: 'fa-building' },
+            { id: 'daily', label: 'Daily Sales', icon: 'fa-calendar-day' },
+            { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-area' },
+            { id: 'inventory', label: 'Inventory', icon: 'fa-warehouse' },
+            { id: 'procurement', label: 'Procurement', icon: 'fa-truck' },
+        ] : [
+            { id: 'daily', label: 'Daily Sales', icon: 'fa-calendar-day' },
+            { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-area' },
+            { id: 'inventory', label: 'Inventory', icon: 'fa-warehouse' },
+            { id: 'procurement', label: 'Procurement', icon: 'fa-truck' },
+            { id: 'cashier', label: 'Cashier Balancing', icon: 'fa-cash-register' },
+        ];
+
+        function renderTabs() {
+            document.getElementById('reportTabs').innerHTML = REPORT_TABS.map((tab, i) => `
+                <li class="nav-item">
+                    <button class="nav-link${i === 0 ? ' active' : ''}" onclick="switchReport('${tab.id}', this)">
+                        <i class="fas ${tab.icon} me-1"></i>${tab.label}
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        function switchReport(reportId, btn) {
+            activeReport = reportId;
+            document.querySelectorAll('#reportTabs .nav-link').forEach(el => el.classList.remove('active'));
+            btn.classList.add('active');
+            renderReportFilters(reportId);
+            loadReport(reportId);
+        }
+
+        function today() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function monthAgo() {
+            const d = new Date();
+            d.setMonth(d.getMonth() - 1);
+            return d.toISOString().split('T')[0];
+        }
+
+        function branchFilterHtml() {
+            if (!isDirector) return '';
+            return `
+                <div class="col-md-3">
+                    <select class="form-control" id="filterBranch">
+                        <option value="">All Branches</option>
+                        ${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                    </select>
+                </div>`;
+        }
+
+        function renderReportFilters(reportId) {
+            const content = document.getElementById('reportContent');
+            let filters = '';
+
+            switch (reportId) {
+                case 'company':
+                    filters = `
+                        <div class="row mb-3 no-print">
+                            <div class="col-md-3"><input type="date" class="form-control" id="filterFrom" value="${monthAgo()}"></div>
+                            <div class="col-md-3"><input type="date" class="form-control" id="filterTo" value="${today()}"></div>
+                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('company')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                        </div>
+                        <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
+                    break;
+                case 'daily':
+                    filters = `
+                        <div class="row mb-3 no-print">
+                            <div class="col-md-3"><input type="date" class="form-control" id="filterDate" value="${today()}"></div>
+                            ${isDirector ? branchFilterHtml() : ''}
+                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('daily')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                        </div>
+                        <div id="reportBody">${isDirector ? '<div class="text-center text-muted py-4">Select a branch and click Generate</div>' : '<div class="text-center text-muted py-4">Loading...</div>'}</div>`;
+                    break;
+                case 'trends':
+                    filters = `
+                        <div class="row mb-3 no-print">
+                            <div class="col-md-2">
+                                <select class="form-control" id="filterPeriod">
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2"><input type="date" class="form-control" id="filterFrom" value="${monthAgo()}"></div>
+                            <div class="col-md-2"><input type="date" class="form-control" id="filterTo" value="${today()}"></div>
+                            ${branchFilterHtml()}
+                            <div class="col-md-2"><button class="btn btn-primary" onclick="loadReport('trends')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                        </div>
+                        <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
+                    break;
+                case 'inventory':
+                    filters = `
+                        <div class="row mb-3 no-print">
+                            ${branchFilterHtml()}
+                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('inventory')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                        </div>
+                        <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
+                    break;
+                case 'procurement':
+                    filters = `
+                        <div class="row mb-3 no-print">
+                            <div class="col-md-2"><input type="date" class="form-control" id="filterFrom" value="${monthAgo()}"></div>
+                            <div class="col-md-2"><input type="date" class="form-control" id="filterTo" value="${today()}"></div>
+                            ${branchFilterHtml()}
+                            <div class="col-md-2"><button class="btn btn-primary" onclick="loadReport('procurement')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                        </div>
+                        <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
+                    break;
+                case 'cashier':
+                    filters = `
+                        <div class="row mb-3 no-print">
+                            <div class="col-md-3"><input type="date" class="form-control" id="filterDate" value="${today()}"></div>
+                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('cashier')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                        </div>
+                        <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
+                    break;
+            }
+
+            content.innerHTML = filters;
+        }
+
+        function getBranchParam() {
+            const el = document.getElementById('filterBranch');
+            return el && el.value ? { branch_id: el.value } : {};
+        }
+
+        function stockBadge(status) {
+            const map = {
+                in_stock: '<span class="badge bg-success">In Stock</span>',
+                low_stock: '<span class="badge bg-warning text-dark">Low Stock</span>',
+                out_of_stock: '<span class="badge bg-danger">Out of Stock</span>',
+            };
+            return map[status] || `<span class="badge bg-secondary">${status}</span>`;
+        }
+
+        function balancingBadge(status) {
+            const map = {
+                balanced: '<span class="badge bg-success">Balanced</span>',
+                short: '<span class="badge bg-danger">Short</span>',
+                over: '<span class="badge bg-info">Over</span>',
+            };
+            return map[status] || `<span class="badge bg-secondary">${status}</span>`;
+        }
+
+        function renderTrendChart(data, labelFn) {
+            if (!data.length) return '<p class="text-muted text-center">No trend data for this period.</p>';
+            const maxRevenue = Math.max(...data.map(d => parseFloat(d.revenue)), 1);
+
+            return `
+                <div class="table-container p-3 mb-3">
+                    <div class="trend-bar-wrap">
+                        ${data.map(d => {
+                            const pct = (parseFloat(d.revenue) / maxRevenue) * 100;
+                            return `
+                                <div class="trend-bar-col" title="${formatCurrency(d.revenue)} — ${d.transactions} txns">
+                                    <div class="trend-bar" style="height: ${Math.max(pct, 2)}%"></div>
+                                    <div class="trend-label">${labelFn(d.period)}</div>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="table table-sm table-hover">
+                        <thead><tr><th>Period</th><th>Revenue</th><th>Transactions</th></tr></thead>
+                        <tbody>
+                            ${data.map(d => `
+                                <tr>
+                                    <td>${labelFn(d.period)}</td>
+                                    <td>${formatCurrency(d.revenue)}</td>
+                                    <td>${d.transactions}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        function formatPeriod(dateStr, period) {
+            const d = new Date(dateStr);
+            if (period === 'monthly') return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            if (period === 'weekly') return 'W/C ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        async function loadReport(reportId) {
+            const body = document.getElementById('reportBody');
+            if (!body) return;
+            body.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin me-2"></i>Loading report...</div>';
+
+            try {
+                switch (reportId) {
+                    case 'company': await loadCompanyReport(body); break;
+                    case 'daily': await loadDailyReport(body); break;
+                    case 'trends': await loadTrendsReport(body); break;
+                    case 'inventory': await loadInventoryReport(body); break;
+                    case 'procurement': await loadProcurementReport(body); break;
+                    case 'cashier': await loadCashierReport(body); break;
                 }
+            } catch (error) {
+                body.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
             }
         }
+
+        async function loadCompanyReport(body) {
+            const params = {
+                from_date: document.getElementById('filterFrom').value,
+                to_date: document.getElementById('filterTo').value,
+            };
+            const response = await api.getCompanyPerformanceReport(params);
+            const d = response.data;
+
+            body.innerHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-3"><div class="stat-card success"><div class="stat-value">${formatCurrency(d.total_sales.total_sales)}</div><div class="stat-label">Total Sales</div></div></div>
+                    <div class="col-md-3"><div class="stat-card info"><div class="stat-value">${d.total_sales.total_transactions}</div><div class="stat-label">Transactions</div></div></div>
+                    <div class="col-md-3"><div class="stat-card warning"><div class="stat-value">${formatCurrency(d.total_inventory_value)}</div><div class="stat-label">Inventory Value</div></div></div>
+                    <div class="col-md-3"><div class="stat-card danger"><div class="stat-value">${formatCurrency(d.total_procurement_value)}</div><div class="stat-label">Procurement Value</div></div></div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom"><h6 class="mb-0">Branch Rankings</h6></div>
+                            <table class="table table-sm table-hover mb-0">
+                                <thead><tr><th>Branch</th><th>Sales</th><th>Transactions</th></tr></thead>
+                                <tbody>
+                                    ${(d.branch_rankings || []).map(b => `
+                                        <tr><td>${b.branch_name}</td><td>${formatCurrency(b.total_sales)}</td><td>${b.transactions}</td></tr>
+                                    `).join('') || '<tr><td colspan="3" class="text-muted text-center">No data</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom"><h6 class="mb-0">Top Categories</h6></div>
+                            <table class="table table-sm table-hover mb-0">
+                                <thead><tr><th>Category</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+                                <tbody>
+                                    ${(d.top_categories || []).map(c => `
+                                        <tr><td>${c.category_name}</td><td>${c.total_qty}</td><td>${formatCurrency(c.total_revenue)}</td></tr>
+                                    `).join('') || '<tr><td colspan="3" class="text-muted text-center">No data</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div class="p-3 border-bottom"><h6 class="mb-0">Top 10 Products</h6></div>
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>#</th><th>Product</th><th>Category</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+                        <tbody>
+                            ${(d.top_products || []).map((p, i) => `
+                                <tr>
+                                    <td>${i + 1}</td>
+                                    <td>${p.product_name}</td>
+                                    <td>${p.category_name}</td>
+                                    <td>${p.total_qty}</td>
+                                    <td>${formatCurrency(p.total_revenue)}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="5" class="text-muted text-center">No data</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        async function loadDailyReport(body) {
+            const date = document.getElementById('filterDate').value;
+            const branchEl = document.getElementById('filterBranch');
+            const branchId = isDirector ? branchEl?.value : null;
+            if (isDirector && !branchId) {
+                body.innerHTML = '<div class="alert alert-info">Please select a branch to view daily sales.</div>';
+                return;
+            }
+            const response = await api.getDailySalesReport(date, branchId);
+            const d = response.data;
+            const s = d.summary;
+
+            body.innerHTML = `
+                <p class="text-muted mb-3">Report for <strong>${date}</strong></p>
+                <div class="row mb-4">
+                    <div class="col-md-4"><div class="stat-card success"><div class="stat-value">${formatCurrency(s.total_revenue)}</div><div class="stat-label">Total Revenue</div></div></div>
+                    <div class="col-md-4"><div class="stat-card info"><div class="stat-value">${s.total_transactions}</div><div class="stat-label">Transactions</div></div></div>
+                    <div class="col-md-4"><div class="stat-card warning"><div class="stat-value">${s.agents_active}</div><div class="stat-label">Active Agents</div></div></div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom"><h6 class="mb-0">Sales by Product</h6></div>
+                            <table class="table table-sm table-hover mb-0">
+                                <thead><tr><th>Product</th><th>Category</th><th>Qty</th><th>Revenue</th></tr></thead>
+                                <tbody>
+                                    ${(d.by_product || []).map(p => `
+                                        <tr><td>${p.product_name}</td><td>${p.category_name}</td><td>${p.total_qty_sold}</td><td>${formatCurrency(p.total_revenue)}</td></tr>
+                                    `).join('') || '<tr><td colspan="4" class="text-muted text-center">No sales recorded</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom"><h6 class="mb-0">Sales by Agent</h6></div>
+                            <table class="table table-sm table-hover mb-0">
+                                <thead><tr><th>Agent</th><th>Transactions</th><th>Revenue</th></tr></thead>
+                                <tbody>
+                                    ${(d.by_agent || []).map(a => `
+                                        <tr><td>${a.full_name}</td><td>${a.transactions}</td><td>${formatCurrency(a.revenue)}</td></tr>
+                                    `).join('') || '<tr><td colspan="3" class="text-muted text-center">No sales recorded</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        async function loadTrendsReport(body) {
+            const period = document.getElementById('filterPeriod').value;
+            const params = {
+                period,
+                from_date: document.getElementById('filterFrom').value,
+                to_date: document.getElementById('filterTo').value,
+                ...getBranchParam(),
+            };
+            const response = await api.getSalesTrends(params);
+            const data = response.data || [];
+
+            const totalRevenue = data.reduce((s, d) => s + parseFloat(d.revenue), 0);
+            const totalTxns = data.reduce((s, d) => s + parseInt(d.transactions), 0);
+
+            body.innerHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-4"><div class="stat-card success"><div class="stat-value">${formatCurrency(totalRevenue)}</div><div class="stat-label">Total Revenue</div></div></div>
+                    <div class="col-md-4"><div class="stat-card info"><div class="stat-value">${totalTxns}</div><div class="stat-label">Total Transactions</div></div></div>
+                    <div class="col-md-4"><div class="stat-card warning"><div class="stat-value">${data.length}</div><div class="stat-label">Periods</div></div></div>
+                </div>
+                ${renderTrendChart(data, p => formatPeriod(p, period))}`;
+        }
+
+        async function loadInventoryReport(body) {
+            const response = await api.getInventoryReport(getBranchParam());
+            const d = response.data;
+            const s = d.summary;
+
+            body.innerHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-3"><div class="stat-card success"><div class="stat-value">${s.in_stock}</div><div class="stat-label">In Stock</div></div></div>
+                    <div class="col-md-3"><div class="stat-card warning"><div class="stat-value">${s.low_stock}</div><div class="stat-label">Low Stock</div></div></div>
+                    <div class="col-md-3"><div class="stat-card danger"><div class="stat-value">${s.out_of_stock}</div><div class="stat-label">Out of Stock</div></div></div>
+                    <div class="col-md-3"><div class="stat-card info"><div class="stat-value">${formatCurrency(s.total_inventory_value)}</div><div class="stat-label">Total Value</div></div></div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr><th>Product</th><th>Category</th><th>Qty</th><th>Reorder</th><th>Cost</th><th>Selling</th><th>Value</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            ${(d.items || []).map(item => `
+                                <tr>
+                                    <td>${item.product_name}</td>
+                                    <td>${item.category_name}</td>
+                                    <td><strong>${item.quantity_available}</strong></td>
+                                    <td>${item.reorder_level}</td>
+                                    <td>${formatCurrency(item.cost_price)}</td>
+                                    <td>${formatCurrency(item.selling_price)}</td>
+                                    <td>${formatCurrency(item.stock_value)}</td>
+                                    <td>${stockBadge(item.stock_status)}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="8" class="text-muted text-center">No inventory data</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        async function loadProcurementReport(body) {
+            const params = {
+                from_date: document.getElementById('filterFrom').value,
+                to_date: document.getElementById('filterTo').value,
+                ...getBranchParam(),
+            };
+            const response = await api.getProcurementReport(params);
+            const d = response.data;
+
+            body.innerHTML = `
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="stat-card info">
+                            <div class="stat-value">${formatCurrency(d.total_cost)}</div>
+                            <div class="stat-label">Total Procurement Cost</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card warning">
+                            <div class="stat-value">${(d.items || []).length}</div>
+                            <div class="stat-label">Records</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr><th>Date</th><th>Product</th><th>Category</th><th>Supplier</th><th>Branch</th><th>Qty</th><th>Cost</th><th>Total</th><th>Recorded By</th></tr>
+                        </thead>
+                        <tbody>
+                            ${(d.items || []).map(item => `
+                                <tr>
+                                    <td>${formatDate(item.date_received)}</td>
+                                    <td>${item.product_name}</td>
+                                    <td>${item.category_name}</td>
+                                    <td>${item.supplier_name || '—'}</td>
+                                    <td>${item.branch_name}</td>
+                                    <td>${item.quantity_received}</td>
+                                    <td>${formatCurrency(item.cost_price)}</td>
+                                    <td>${formatCurrency(item.total_cost)}</td>
+                                    <td>${item.recorded_by}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="9" class="text-muted text-center">No procurement records</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        async function loadCashierReport(body) {
+            const date = document.getElementById('filterDate').value;
+            const response = await api.getCashierBalancingReport(date);
+            const d = response.data;
+            const t = d.totals;
+
+            body.innerHTML = `
+                <p class="text-muted mb-3">Cashier balancing for <strong>${date}</strong></p>
+                <div class="row mb-4">
+                    <div class="col-md-4"><div class="stat-card info"><div class="stat-value">${formatCurrency(t.expected)}</div><div class="stat-label">Expected</div></div></div>
+                    <div class="col-md-4"><div class="stat-card success"><div class="stat-value">${formatCurrency(t.submitted)}</div><div class="stat-label">Submitted</div></div></div>
+                    <div class="col-md-4"><div class="stat-card ${t.variance < 0 ? 'danger' : t.variance > 0 ? 'warning' : 'success'}"><div class="stat-value">${formatCurrency(t.variance)}</div><div class="stat-label">Variance</div></div></div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr><th>Agent</th><th>Expected</th><th>Submitted</th><th>Variance</th><th>Status</th><th>Manager</th><th>Notes</th></tr>
+                        </thead>
+                        <tbody>
+                            ${(d.records || []).map(r => `
+                                <tr>
+                                    <td>${r.agent_name}</td>
+                                    <td>${formatCurrency(r.expected_amount)}</td>
+                                    <td>${formatCurrency(r.submitted_amount)}</td>
+                                    <td>${formatCurrency(r.variance)}</td>
+                                    <td>${balancingBadge(r.status)}</td>
+                                    <td>${r.manager_name || '—'}</td>
+                                    <td>${r.notes || '—'}</td>
+                                </tr>
+                            `).join('') || '<tr><td colspan="7" class="text-muted text-center">No balancing records for this date</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`;
+        }
+
+        async function loadBranches() {
+            if (!isDirector) return;
+            try {
+                const response = await api.getBranches();
+                if (response.success) branches = response.data || [];
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function handleLogout() {
+            if (!confirm('Are you sure you want to logout?')) return;
+            try {
+                await auth.logout();
+                showSuccess('Logged out successfully');
+                setTimeout(() => window.location.href = '../index.html', 1000);
+            } catch (error) {
+                showError('Logout failed');
+            }
+        }
+
+        renderTabs();
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadBranches();
+            activeReport = REPORT_TABS[0].id;
+            renderReportFilters(activeReport);
+            loadReport(activeReport);
+        });
     </script>
 </body>
 </html>

@@ -26,16 +26,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="#" class="active"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
-            </div>
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
 
             <!-- Main Content -->
             <div class="col-md-10 p-4">
@@ -140,21 +131,30 @@
                     </div>
                 </div>
 
+                <!-- Cashier Summary -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="table-container">
+                            <div class="p-3 border-bottom"><h5 class="mb-0">Cashier Sales Summary (Today)</h5></div>
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Agent</th><th>Transactions</th><th>Total Sales</th></tr></thead>
+                                <tbody id="cashierSummaryTable"><tr><td colspan="3" class="text-center text-muted py-3">Loading...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Quick Actions -->
                 <div class="row">
                     <div class="col-12">
                         <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                             <h5 class="mb-3">Quick Actions</h5>
                             <div class="d-flex flex-wrap gap-2">
-                                <a href="sales.html" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-plus me-1"></i>Record Sale
-                                </a>
-                                <a href="inventory.html" class="btn btn-warning btn-sm text-white">
-                                    <i class="fas fa-edit me-1"></i>Update Inventory
-                                </a>
-                                <a href="reports.html" class="btn btn-info btn-sm text-white">
-                                    <i class="fas fa-download me-1"></i>Generate Report
-                                </a>
+                                <a href="procurement.html" class="btn btn-primary btn-sm"><i class="fas fa-truck me-1"></i>Record Procurement</a>
+                                <a href="cashier-balancing.html" class="btn btn-success btn-sm"><i class="fas fa-cash-register me-1"></i>Balance Cashier</a>
+                                <a href="inventory.html" class="btn btn-warning btn-sm text-white"><i class="fas fa-edit me-1"></i>Adjust Stock</a>
+                                <a href="notifications.html" class="btn btn-danger btn-sm"><i class="fas fa-bell me-1"></i>Alerts</a>
+                                <a href="reports.html" class="btn btn-info btn-sm text-white"><i class="fas fa-download me-1"></i>Generate Report</a>
                             </div>
                         </div>
                     </div>
@@ -168,20 +168,14 @@
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
 
+    <script src="../js/nav.js"></script>
     <script>
-        // Protect page
         requireAuth();
-
-        // Check role
         if (!auth.hasRole(['manager', 'director'])) {
             showError('Unauthorized: Manager access required');
             setTimeout(() => window.location.href = '../index.html', 2000);
         }
-
-        // Set user info
-        const user = auth.getCurrentUser();
-        document.getElementById('userName').textContent = user?.full_name || 'User';
-        document.getElementById('branchName').textContent = user?.branch_name ? `(${user.branch_name})` : '';
+        initPage('dashboard');
 
         // Load dashboard data
         async function loadDashboard() {
@@ -197,41 +191,37 @@
         }
 
         function displayDashboard(data) {
-            // Statistics
             document.getElementById('branchSales').textContent = formatCurrency(data.branch_sales || 0);
-            document.getElementById('inventoryValue').textContent = formatCurrency(data.inventory_value || 0);
-            document.getElementById('lowStockCount').textContent = (data.low_stock_alerts || []).length;
+            document.getElementById('inventoryValue').textContent = formatCurrency(data.inventory?.inventory_value || 0);
+            document.getElementById('lowStockCount').textContent = data.inventory?.low_stock_count || (data.low_stock_alerts || []).length;
 
-            // Inventory Summary
             document.getElementById('totalItems').textContent = data.inventory?.total_items || 0;
-            document.getElementById('outOfStock').textContent = data.inventory?.out_of_stock || 0;
-            document.getElementById('lowStock').textContent = data.inventory?.low_stock || 0;
+            document.getElementById('outOfStock').textContent = data.inventory?.out_of_stock_count || 0;
+            document.getElementById('lowStock').textContent = data.inventory?.low_stock_count || 0;
 
-            // Recent Procurements
             const procurementsHtml = (data.recent_procurements || []).map(proc => `
                 <tr>
-                    <td>${proc.vendor_name}</td>
-                    <td>${formatCurrency(proc.total_amount)}</td>
-                    <td>${formatDate(proc.procurement_date)}</td>
+                    <td>${proc.supplier_name}</td>
+                    <td>${formatCurrency(proc.quantity_received * proc.cost_price)}</td>
+                    <td>${formatDate(proc.date_received)}</td>
                 </tr>
             `).join('') || '<tr><td colspan="3" class="text-center text-muted py-3">No procurements</td></tr>';
             document.getElementById('procurementsTable').innerHTML = procurementsHtml;
 
-            // Low Stock Alerts
             const alertsHtml = (data.low_stock_alerts || []).map(alert => `
                 <tr>
-                    <td>${alert.product_name}</td>
-                    <td>${alert.quantity_in_stock}</td>
+                    <td>${alert.name}</td>
+                    <td>${alert.quantity_available}</td>
                     <td>${alert.reorder_level}</td>
-                    <td>${alert.category_name}</td>
-                    <td>
-                        <button class="btn btn-xs btn-warning" onclick="alert('Order functionality coming soon')">
-                            <i class="fas fa-shopping-cart"></i> Order
-                        </button>
-                    </td>
+                    <td>—</td>
+                    <td><a href="procurement.html" class="btn btn-xs btn-warning btn-sm"><i class="fas fa-truck"></i> Procure</a></td>
                 </tr>
             `).join('') || '<tr><td colspan="5" class="text-center text-muted py-4">No low stock items</td></tr>';
             document.getElementById('lowStockTable').innerHTML = alertsHtml;
+
+            document.getElementById('cashierSummaryTable').innerHTML = (data.cashier_summary || []).map(c => `
+                <tr><td>${c.full_name}</td><td>${c.transaction_count}</td><td>${formatCurrency(c.total_sales)}</td></tr>
+            `).join('') || '<tr><td colspan="3" class="text-center text-muted py-3">No sales today</td></tr>';
         }
 
         async function handleLogout() {

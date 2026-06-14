@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3"><i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span><small class="ms-2" id="branchName"></small></span>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header d-flex justify-content-between align-items-center">
+                    <div><h1><i class="fas fa-bell me-2"></i>Notifications</h1><p>Stock alerts and system notifications</p></div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="markAllRead()"><i class="fas fa-check-double me-1"></i>Mark All Read</button>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <select class="form-control" id="typeFilter" onchange="loadNotifications()">
+                            <option value="">All Types</option>
+                            <option value="low_stock">Low Stock</option>
+                            <option value="out_of_stock">Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-control" id="readFilter" onchange="loadNotifications()">
+                            <option value="">All</option>
+                            <option value="false">Unread</option>
+                            <option value="true">Read</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="notificationsList"><div class="text-center text-muted py-5">Loading...</div></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
+    <script>
+        requireAuth();
+        if (!canManage()) { showError('Manager access required'); setTimeout(() => auth.redirectToDashboard(), 1500); }
+        initPage('notifications');
+
+        function getTypeBadge(type) {
+            return type === 'out_of_stock'
+                ? '<span class="badge bg-danger">Out of Stock</span>'
+                : '<span class="badge bg-warning text-dark">Low Stock</span>';
+        }
+
+        async function loadNotifications() {
+            const params = {};
+            const read = document.getElementById('readFilter').value;
+            if (read) params.is_read = read;
+            try {
+                const res = await api.getNotifications(params);
+                let items = res.success ? res.data : [];
+                const type = document.getElementById('typeFilter').value;
+                if (type) items = items.filter(n => n.type === type);
+
+                document.getElementById('notificationsList').innerHTML = items.length ? items.map(n => `
+                    <div class="table-container p-3 mb-2 ${n.is_read ? '' : 'border-start border-4 border-warning'}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                ${getTypeBadge(n.type)}
+                                <strong class="ms-2">${n.product_name || 'System'}</strong>
+                                <p class="mb-1 mt-1 text-muted">${n.message}</p>
+                                <small class="text-muted">${formatDate(n.created_at)} · ${n.branch_name || ''}</small>
+                            </div>
+                            <div>${!n.is_read ? `<button class="btn btn-sm btn-outline-primary" onclick="markRead(${n.id})">Mark Read</button>` : '<span class="badge bg-secondary">Read</span>'}</div>
+                        </div>
+                    </div>
+                `).join('') : '<div class="text-center text-muted py-5">No notifications</div>';
+            } catch (e) { showError(e.message); }
+        }
+
+        async function markRead(id) {
+            await api.markNotificationRead(id);
+            loadNotifications();
+            loadNotificationBadge();
+        }
+
+        async function markAllRead() {
+            await api.markAllNotificationsRead();
+            showSuccess('All notifications marked as read');
+            loadNotifications();
+            loadNotificationBadge();
+        }
+
+        async function handleLogout() {
+            if (!confirm('Logout?')) return;
+            await auth.logout(); window.location.href = '../index.html';
+        }
+
+        loadNotifications();
+    </script>
+</body>
+</html>

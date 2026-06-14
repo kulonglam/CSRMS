@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procurement - CSRMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🏪 CSRMS</a>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
+                    <small class="ms-2" id="branchName"></small>
+                </span>
+                <a href="change-password.html" class="btn btn-outline-light btn-sm"><i class="fas fa-key"></i></a>
+                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
+            <div class="col-md-10 p-4">
+                <div class="dashboard-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1><i class="fas fa-truck me-2"></i>Procurement</h1>
+                        <p>Record stock received from suppliers</p>
+                    </div>
+                    <button class="btn btn-primary" data-manager-only data-bs-toggle="modal" data-bs-target="#procurementModal" onclick="resetForm()">
+                        <i class="fas fa-plus me-2"></i>Record Procurement
+                    </button>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4"><input type="text" class="form-control" id="searchInput" placeholder="Search supplier or product..." onkeyup="filterTable()"></div>
+                    <div class="col-md-3" id="branchFilterCol" style="display:none">
+                        <select class="form-control" id="branchFilter" onchange="loadProcurements()"><option value="">All Branches</option></select>
+                    </div>
+                    <div class="col-md-2"><input type="date" class="form-control" id="fromDate" onchange="loadProcurements()"></div>
+                    <div class="col-md-2"><input type="date" class="form-control" id="toDate" onchange="loadProcurements()"></div>
+                </div>
+
+                <div class="table-container">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Supplier</th>
+                                <th id="branchCol">Branch</th>
+                                <th>Qty</th>
+                                <th>Cost</th>
+                                <th>Total</th>
+                                <th>Recorded By</th>
+                            </tr>
+                        </thead>
+                        <tbody id="procurementsTable"><tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="procurementModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Record Procurement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <form id="procurementForm" onsubmit="saveProcurement(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Product</label>
+                            <select class="form-control" id="procProduct" required><option value="">Select Product</option></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Supplier Name</label>
+                            <input type="text" class="form-control" id="procSupplier" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Quantity Received</label>
+                                <input type="number" class="form-control" id="procQuantity" min="1" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Cost Price (per unit)</label>
+                                <input type="number" class="form-control" id="procCostPrice" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date Received</label>
+                            <input type="date" class="form-control" id="procDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" id="procNotes" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save & Update Stock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/nav.js"></script>
+    <script>
+        requireAuth();
+        if (!auth.hasRole(['director', 'manager'])) {
+            showError('Unauthorized'); setTimeout(() => auth.redirectToDashboard(), 1500);
+        }
+        initPage('procurement');
+        if (!isDirector()) document.getElementById('branchCol').style.display = 'none';
+
+        let allProcurements = [];
+        let allProducts = [];
+
+        async function loadProducts() {
+            const res = await api.getProducts({ status: 'active' });
+            if (res.success) {
+                allProducts = res.data || [];
+                document.getElementById('procProduct').innerHTML = '<option value="">Select Product</option>' +
+                    allProducts.map(p => `<option value="${p.id}" data-cost="${p.cost_price}">${p.name}</option>`).join('');
+            }
+        }
+
+        document.getElementById('procProduct')?.addEventListener('change', function() {
+            const opt = this.selectedOptions[0];
+            if (opt?.dataset.cost) document.getElementById('procCostPrice').value = opt.dataset.cost;
+        });
+
+        async function loadBranches() {
+            if (!isDirector()) return;
+            const res = await api.getBranches();
+            if (res.success) {
+                document.getElementById('branchFilterCol').style.display = 'block';
+                document.getElementById('branchFilter').innerHTML = '<option value="">All Branches</option>' +
+                    res.data.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+            }
+        }
+
+        async function loadProcurements() {
+            const params = {};
+            if (document.getElementById('fromDate').value) params.from_date = document.getElementById('fromDate').value;
+            if (document.getElementById('toDate').value) params.to_date = document.getElementById('toDate').value;
+            if (isDirector() && document.getElementById('branchFilter').value) params.branch_id = document.getElementById('branchFilter').value;
+            try {
+                const res = await api.getProcurements(params);
+                if (res.success) { allProcurements = res.data || []; displayProcurements(allProcurements); }
+            } catch (e) { showError('Failed to load procurements'); }
+        }
+
+        function displayProcurements(items) {
+            const showBranch = isDirector();
+            document.getElementById('procurementsTable').innerHTML = items.map(p => {
+                const total = p.quantity_received * parseFloat(p.cost_price);
+                return `<tr>
+                    <td>${p.id}</td>
+                    <td>${formatDate(p.date_received)}</td>
+                    <td>${p.product_name}</td>
+                    <td>${p.supplier_name}</td>
+                    ${showBranch ? `<td>${p.branch_name}</td>` : ''}
+                    <td>${p.quantity_received}</td>
+                    <td>${formatCurrency(p.cost_price)}</td>
+                    <td>${formatCurrency(total)}</td>
+                    <td>${p.recorded_by_name}</td>
+                </tr>`;
+            }).join('') || `<tr><td colspan="${showBranch ? 9 : 8}" class="text-center text-muted">No procurements found</td></tr>`;
+        }
+
+        function filterTable() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            displayProcurements(allProcurements.filter(p =>
+                p.product_name.toLowerCase().includes(term) || p.supplier_name.toLowerCase().includes(term)
+            ));
+        }
+
+        function resetForm() {
+            document.getElementById('procurementForm').reset();
+            document.getElementById('procDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        async function saveProcurement(e) {
+            e.preventDefault();
+            const data = {
+                product_id: parseInt(document.getElementById('procProduct').value),
+                supplier_name: document.getElementById('procSupplier').value.trim(),
+                quantity_received: parseInt(document.getElementById('procQuantity').value),
+                cost_price: parseFloat(document.getElementById('procCostPrice').value),
+                date_received: document.getElementById('procDate').value,
+                notes: document.getElementById('procNotes').value.trim() || null,
+            };
+            try {
+                const res = await api.createProcurement(data);
+                if (res.success) {
+                    showSuccess('Procurement recorded and inventory updated');
+                    bootstrap.Modal.getInstance(document.getElementById('procurementModal')).hide();
+                    loadProcurements();
+                }
+            } catch (err) { showError(err.message); }
+        }
+
+        async function handleLogout() {
+            if (!confirm('Logout?')) return;
+            await auth.logout();
+            window.location.href = '../index.html';
+        }
+
+        document.getElementById('procDate').value = new Date().toISOString().split('T')[0];
+        loadBranches(); loadProducts(); loadProcurements();
+    </script>
+</body>
+</html>

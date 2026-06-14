@@ -25,19 +25,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-2 sidebar">
-                <ul class="sidebar-menu">
-                    <li><a href="dashboard-director.html"><i class="fas fa-chart-line me-2"></i>Dashboard</a></li>
-                    <li><a href="#" class="active"><i class="fas fa-list me-2"></i>Categories</a></li>
-                    <li><a href="products.html"><i class="fas fa-box me-2"></i>Products</a></li>
-                    <li><a href="branches.html"><i class="fas fa-sitemap me-2"></i>Branches</a></li>
-                    <li><a href="users.html"><i class="fas fa-users me-2"></i>Users</a></li>
-                    <li><a href="inventory.html"><i class="fas fa-warehouse me-2"></i>Inventory</a></li>
-                    <li><a href="sales.html"><i class="fas fa-shopping-cart me-2"></i>Sales</a></li>
-                    <li><a href="reports.html"><i class="fas fa-file-chart-line me-2"></i>Reports</a></li>
-                    <li><a href="audit-logs.html"><i class="fas fa-history me-2"></i>Audit Logs</a></li>
-                </ul>
-            </div>
+            <div class="col-md-2 sidebar"><ul class="sidebar-menu" id="sidebarMenu"></ul></div>
 
             <!-- Main Content -->
             <div class="col-md-10 p-4">
@@ -46,7 +34,7 @@
                         <h1><i class="fas fa-list me-2"></i>Categories</h1>
                         <p>Manage product categories</p>
                     </div>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal" onclick="resetForm()">
+                    <button class="btn btn-primary" data-manager-only data-bs-toggle="modal" data-bs-target="#categoryModal" onclick="resetForm()">
                         <i class="fas fa-plus me-2"></i>Add Category
                     </button>
                 </div>
@@ -96,6 +84,10 @@
                             <input type="text" class="form-control" id="categoryName" required>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="categoryDescription" rows="2" placeholder="Optional category description"></textarea>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label">Status</label>
                             <select class="form-control" id="categoryStatus">
                                 <option value="active">Active</option>
@@ -117,9 +109,10 @@
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
 
+    <script src="../js/nav.js"></script>
     <script>
         requireAuth();
-        document.getElementById('userName').textContent = auth.getCurrentUser()?.full_name || 'User';
+        initPage('categories');
 
         let allCategories = [];
         let editingId = null;
@@ -144,7 +137,7 @@
                     <td>${getStatusBadge(cat.status)}</td>
                     <td>${formatDate(cat.created_at)}</td>
                     <td>
-                        <div class="action-buttons">
+                        <div class="action-buttons" data-manager-only>
                             <button class="btn btn-sm btn-warning" onclick="editCategory(${cat.id})">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -178,6 +171,7 @@
             if (category) {
                 editingId = id;
                 document.getElementById('categoryName').value = category.name;
+                document.getElementById('categoryDescription').value = category.description || '';
                 document.getElementById('categoryStatus').value = category.status;
                 document.getElementById('modalTitle').textContent = 'Edit Category';
                 new bootstrap.Modal(document.getElementById('categoryModal')).show();
@@ -188,6 +182,7 @@
             event.preventDefault();
 
             const name = document.getElementById('categoryName').value.trim();
+            const description = document.getElementById('categoryDescription').value.trim() || null;
             const status = document.getElementById('categoryStatus').value;
 
             if (!name) {
@@ -195,12 +190,14 @@
                 return;
             }
 
+            const payload = { name, description, status };
+
             try {
                 let response;
                 if (editingId) {
-                    response = await api.updateCategory(editingId, { name, status });
+                    response = await api.updateCategory(editingId, payload);
                 } else {
-                    response = await api.createCategory({ name, status });
+                    response = await api.createCategory(payload);
                 }
 
                 if (response.success) {
