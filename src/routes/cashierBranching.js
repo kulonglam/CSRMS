@@ -1,10 +1,27 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
-const { getBalances, getAgentDailySummary, createBalance, approveBalance } = require('../controllers/cashierBalancingController');
+const {
+  getBalances,
+  getAgentDailySummary,
+  getMyDailySummary,
+  agentSubmitBalance,
+  createBalance,
+  approveBalance,
+} = require('../controllers/cashierBalancingController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/errorHandler');
 
-router.use(authenticate, authorize('manager'));
+router.use(authenticate);
+
+// Sales agent — submit own cash and view own summary
+router.get('/my-summary', authorize('sales_agent'), getMyDailySummary);
+router.post('/submit', authorize('sales_agent'), [
+  body('submitted_amount').isFloat({ min: 0 }).withMessage('Submitted amount must be a positive number.'),
+  validate,
+], agentSubmitBalance);
+
+// Manager — verify and reconcile
+router.use(authorize('manager'));
 
 router.get('/', getBalances);
 router.get('/agent/:agentId/summary', getAgentDailySummary);

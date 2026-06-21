@@ -126,6 +126,23 @@ function requireAuth() {
 }
 
 const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 minutes idle timeout
+let lastActivityTouch = 0;
+
+function touchActivity() {
+  const now = Date.now();
+  if (now - lastActivityTouch > 5000) {
+    lastActivityTouch = now;
+    localStorage.setItem('lastActivity', now.toString());
+  }
+}
+
+function bindActivityTracking() {
+  if (window._csrmsActivityBound) return;
+  window._csrmsActivityBound = true;
+  ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
+    document.addEventListener(evt, touchActivity, { passive: true });
+  });
+}
 
 function checkSessionTimeout() {
   const loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
@@ -140,12 +157,7 @@ function checkSessionTimeout() {
   }
 
   localStorage.setItem('lastActivity', now.toString());
-
-  ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
-    document.addEventListener(evt, () => {
-      localStorage.setItem('lastActivity', Date.now().toString());
-    }, { once: true });
-  });
+  bindActivityTracking();
 }
 
 // Show notifications
@@ -177,4 +189,19 @@ function showSuccess(message) {
 // Show warning notification
 function showWarning(message) {
   showNotification(message, 'warning');
+}
+
+async function handleLogout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  try {
+    await auth.logout();
+    showSuccess('Logged out successfully');
+    setTimeout(() => {
+      window.location.href = window.location.pathname.includes('/pages/')
+        ? '../index.html'
+        : 'index.html';
+    }, 1000);
+  } catch {
+    showError('Logout failed');
+  }
 }

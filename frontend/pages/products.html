@@ -220,6 +220,35 @@
         </div>
     </div>
 
+    <!-- Edit Barcode Modal -->
+    <div class="modal fade" id="editBarcodeModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Edit Barcode</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <form onsubmit="saveBarcodeEdit(event)">
+                    <div class="modal-body">
+                        <input type="hidden" id="editBarcodeId">
+                        <div class="mb-3">
+                            <label class="form-label">Barcode Number</label>
+                            <input type="text" class="form-control" id="editBarcodeNumber" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" id="editBarcodeStatus" required>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Price Update Modal -->
     <div class="modal fade" id="priceModal" tabindex="-1">
         <div class="modal-dialog modal-sm">
@@ -567,11 +596,21 @@
         }
 
         async function editBarcode(id, currentNumber, currentStatus) {
-            const barcode_number = prompt('Edit barcode number:', currentNumber);
+            document.getElementById('editBarcodeId').value = id;
+            document.getElementById('editBarcodeNumber').value = currentNumber;
+            document.getElementById('editBarcodeStatus').value = currentStatus;
+            new bootstrap.Modal(document.getElementById('editBarcodeModal')).show();
+        }
+
+        async function saveBarcodeEdit(event) {
+            event.preventDefault();
+            const id = document.getElementById('editBarcodeId').value;
+            const barcode_number = document.getElementById('editBarcodeNumber').value.trim();
+            const status = document.getElementById('editBarcodeStatus').value;
             if (!barcode_number) return;
-            const status = prompt('Status (active/inactive):', currentStatus) || currentStatus;
             try {
                 await api.updateBarcode(id, { barcode_number, status });
+                bootstrap.Modal.getInstance(document.getElementById('editBarcodeModal')).hide();
                 showSuccess('Barcode updated');
                 loadBarcodes();
             } catch (e) { showError(e.message); }
@@ -602,17 +641,6 @@
                 bootstrap.Modal.getInstance(document.getElementById('priceModal')).hide();
                 loadData();
             } catch (err) { showError(err.message); }
-        }
-
-        async function handleLogout() {
-            if (!confirm('Are you sure you want to logout?')) return;
-            try {
-                await auth.logout();
-                showSuccess('Logged out successfully');
-                setTimeout(() => window.location.href = '../index.html', 1000);
-            } catch (error) {
-                showError('Logout failed');
-            }
         }
 
         window.addEventListener('DOMContentLoaded', loadData);

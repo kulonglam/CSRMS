@@ -11,6 +11,16 @@ const authenticate = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    if (decoded.jti) {
+      const revoked = await query(
+        'SELECT 1 FROM revoked_tokens WHERE jti = $1 AND expires_at > NOW()',
+        [decoded.jti]
+      );
+      if (revoked.rows.length > 0) {
+        return res.status(401).json({ success: false, message: 'Token has been revoked. Please login again.' });
+      }
+    }
+
     const result = await query(
       'SELECT id, branch_id, full_name, username, role, status FROM users WHERE id = $1',
       [decoded.userId]
@@ -26,6 +36,7 @@ const authenticate = async (req, res, next) => {
     }
 
     req.user = user;
+    req.tokenPayload = decoded;
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -35,7 +46,6 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Role-based access control factory
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -48,7 +58,6 @@ const authorize = (...roles) => {
   };
 };
 
-// Ensure manager/agent can only access their own branch
 const requireBranch = (req, res, next) => {
   if (req.user.role === 'director') return next();
   if (!req.user.branch_id) {

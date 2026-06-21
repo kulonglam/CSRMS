@@ -15,7 +15,7 @@
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
             <div class="d-flex align-items-center gap-2">
                 <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="userName">User</span>
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
                 </span>
                 <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
             </div>
@@ -30,7 +30,7 @@
             <!-- Main Content -->
             <div class="col-md-10 p-4">
                 <div class="dashboard-header">
-                    <h1><i class="fas fa-chart-line me-2"></i>Director Dashboard</h1>
+                    <h1><i class="fas fa-th me-2"></i>Director Dashboard</h1>
                     <p>Welcome to CSRMS - Monitor your entire retail operations</p>
                 </div>
 
@@ -120,7 +120,8 @@
                                 <a href="procurement.html" class="btn btn-success btn-sm"><i class="fas fa-truck me-1"></i>Procurement</a>
                                 <a href="users.html" class="btn btn-secondary btn-sm"><i class="fas fa-users me-1"></i>Manage Users</a>
                                 <a href="branches.html" class="btn btn-warning btn-sm text-white"><i class="fas fa-sitemap me-1"></i>Branches</a>
-                                <button class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="fas fa-download me-1"></i>Export Report</button>
+                                <a href="reports.html" class="btn btn-primary btn-sm"><i class="fas fa-file-chart-line me-1"></i>View Reports</a>
+                                <button class="btn btn-outline-secondary btn-sm" onclick="window.location.href='reports.html'"><i class="fas fa-file-pdf me-1"></i>Export Reports</button>
                             </div>
                         </div>
                     </div>
@@ -181,18 +182,6 @@
                 </tr>
             `).join('') || '<tr><td colspan="3" class="text-center text-muted">No data</td></tr>';
             document.getElementById('salesTrendsTable').innerHTML = salesTrendsHtml;
-        }
-
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    showSuccess('Logged out successfully');
-                    setTimeout(() => window.location.href = '../index.html', 1000);
-                } catch (error) {
-                    showError('Logout failed');
-                }
-            }
         }
 
         // Load on page load

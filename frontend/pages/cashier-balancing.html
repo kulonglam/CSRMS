@@ -14,7 +14,6 @@
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
             <div class="d-flex align-items-center gap-2">
                 <span class="text-light me-3"><i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span><small class="ms-2" id="branchName"></small></span>
-                <a href="notifications.html" class="btn btn-outline-light btn-sm position-relative"><i class="fas fa-bell"></i><span id="notificationBadge" class="badge bg-danger position-absolute top-0 start-100 translate-middle" style="display:none">0</span></a>
                 <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
             </div>
         </div>
@@ -118,7 +117,11 @@
                     document.getElementById('submitSection').style.display = 'block';
                     document.getElementById('expectedAmount').textContent = formatCurrency(d.expected_amount);
                     document.getElementById('transactionCount').textContent = d.transaction_count;
-                    document.getElementById('submittedAmount').value = d.expected_amount || '';
+                    document.getElementById('submittedAmount').value = d.balance?.submitted_amount ?? d.expected_amount ?? '';
+                    document.getElementById('balanceNotes').value = d.balance?.notes || '';
+                    if (d.balance?.status === 'pending') {
+                        showSuccess('Agent has submitted cash — verify and approve.');
+                    }
                     document.getElementById('agentSalesTable').innerHTML = (d.sales || []).map(s => `
                         <tr><td><code>${s.receipt_number}</code></td><td>${formatDate(s.created_at)}</td>
                         <td>${formatCurrency(s.total_amount)}</td><td>${formatCurrency(s.amount_paid)}</td><td>${formatCurrency(s.change_given)}</td></tr>
@@ -150,8 +153,8 @@
                         <td>${formatDate(r.balance_date)}</td><td>${r.agent_name}</td>
                         <td>${formatCurrency(r.expected_amount)}</td><td>${formatCurrency(r.submitted_amount)}</td>
                         <td>${formatCurrency(r.variance)}</td>
-                        <td>${r.status === 'approved' ? '<span class="badge bg-success">Approved</span>' : '<span class="badge bg-warning text-dark">Flagged</span>'}</td>
-                        <td>${r.status === 'flagged' ? `<button class="btn btn-sm btn-success" onclick="approveBalance(${r.id})">Approve</button>` : ''}</td>
+                        <td>${r.status === 'approved' ? '<span class="badge bg-success">Approved</span>' : r.status === 'pending' ? '<span class="badge bg-info">Pending</span>' : '<span class="badge bg-warning text-dark">Flagged</span>'}</td>
+                        <td>${(r.status === 'flagged' || r.status === 'pending') ? `<button class="btn btn-sm btn-success" onclick="approveBalance(${r.id})">Approve</button>` : ''}</td>
                     </tr>
                 `).join('') || '<tr><td colspan="7" class="text-center text-muted">No records</td></tr>';
             } catch (e) { showError(e.message); }
@@ -164,12 +167,6 @@
                 if (res.success) { showSuccess('Balance approved'); loadHistory(); }
             } catch (e) { showError(e.message); }
         }
-
-        async function handleLogout() {
-            if (!confirm('Logout?')) return;
-            await auth.logout(); window.location.href = '../index.html';
-        }
-
         document.getElementById('balanceDate').value = new Date().toISOString().split('T')[0];
         loadAgents();
     </script>

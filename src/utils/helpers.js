@@ -10,14 +10,4 @@ const generateReceiptNumber = () => {
   return `RCP-${date}-${suffix}`;
 };
 
-/**
- * Format currency to 2 decimal places
- */
-const formatCurrency = (value) => parseFloat(value).toFixed(2);
-
-/**
- * Get today's date as YYYY-MM-DD string
- */
-const today = () => new Date().toISOString().split('T')[0];
-
-module.exports = { generateReceiptNumber, formatCurrency, today };
+module.exports = { generateReceiptNumber };

@@ -15,7 +15,8 @@
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
             <div class="d-flex align-items-center gap-2">
                 <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="userName">User</span>
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
+                    <small class="ms-2" id="branchName"></small>
                 </span>
                 <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
             </div>
@@ -30,7 +31,7 @@
             <!-- Main Content -->
             <div class="col-md-10 p-4">
                 <div class="dashboard-header">
-                    <h1><i class="fas fa-chart-line me-2"></i>Sales Dashboard</h1>
+                    <h1><i class="fas fa-th me-2"></i>Sales Dashboard</h1>
                     <p>Your daily sales performance</p>
                 </div>
 
@@ -52,6 +53,20 @@
                         <div class="stat-card success">
                             <div class="stat-value" id="avgTransaction">USh 0</div>
                             <div class="stat-label">Avg Transaction</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barcode Lookup -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="table-container p-3">
+                            <h5 class="mb-3"><i class="fas fa-barcode me-2"></i>Barcode Search</h5>
+                            <div class="input-group" style="max-width: 420px;">
+                                <input type="text" class="form-control" id="barcodeInput" placeholder="Scan or enter barcode..." autofocus>
+                                <button class="btn btn-primary" type="button" onclick="lookupBarcode()"><i class="fas fa-search me-1"></i>Lookup</button>
+                            </div>
+                            <div id="barcodeResult" class="mt-3"></div>
                         </div>
                     </div>
                 </div>
@@ -107,6 +122,37 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Cash Submission -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="table-container p-3">
+                            <h5 class="mb-3"><i class="fas fa-money-bill-wave me-2"></i>Daily Cash Submission</h5>
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <input type="date" class="form-control" id="cashDate" onchange="loadCashSummary()">
+                                </div>
+                            </div>
+                            <div class="row mb-3" id="cashSummarySection" style="display:none">
+                                <div class="col-md-4"><div class="stat-card info"><div class="stat-value" id="expectedCash">USh 0</div><div class="stat-label">Expected from Sales</div></div></div>
+                                <div class="col-md-4"><div class="stat-card warning"><div class="stat-value" id="cashStatus">—</div><div class="stat-label">Submission Status</div></div></div>
+                            </div>
+                            <form onsubmit="submitMyCash(event)" class="row g-3" id="cashSubmitForm">
+                                <div class="col-md-4">
+                                    <label class="form-label">Cash Collected</label>
+                                    <input type="number" class="form-control" id="cashSubmitted" step="1" min="0" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Notes</label>
+                                    <input type="text" class="form-control" id="cashNotes" placeholder="Optional">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">Submit Cash</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -179,7 +225,7 @@
             // Recent Sales
             const salesHtml = (data.recent_sales || []).map(sale => `
                 <tr>
-                    <td>${formatDate(sale.sale_date)}</td>
+                    <td>${formatDate(sale.sale_date || sale.created_at)}</td>
                     <td>${sale.item_count || 1}</td>
                     <td>${formatCurrency(sale.total_amount)}</td>
                     <td>${getStatusBadge(sale.status)}</td>
@@ -205,11 +251,9 @@
                             : `<span class="badge bg-danger">Out of Stock</span>`}
                     </td>
                     <td>
-                        <button class="btn btn-xs btn-primary" 
-                            onclick="addToCart(${product.id}, '${product.name}', ${product.price})"
-                            ${product.quantity_in_stock === 0 ? 'disabled' : ''}>
-                            <i class="fas fa-cart-plus"></i> Add
-                        </button>
+                        <a href="sales.html" class="btn btn-xs btn-primary ${product.quantity_in_stock === 0 ? 'disabled' : ''}">
+                            <i class="fas fa-cart-plus"></i> Sell
+                        </a>
                     </td>
                 </tr>
             `).join('') || '<tr><td colspan="5" class="text-center text-muted">No products found</td></tr>';
@@ -220,33 +264,84 @@
             const searchTerm = document.getElementById('searchProducts').value.toLowerCase();
             const filtered = allProducts.filter(p => 
                 p.name.toLowerCase().includes(searchTerm) ||
-                p.category_name.toLowerCase().includes(searchTerm)
+                (p.category_name && p.category_name.toLowerCase().includes(searchTerm))
             );
             displayProducts(filtered);
         }
 
-        function addToCart(productId, name, price) {
-            showSuccess(`Added ${name} to cart`);
-            // POS system would handle cart logic
+        async function lookupBarcode() {
+            const barcode = document.getElementById('barcodeInput').value.trim();
+            const resultEl = document.getElementById('barcodeResult');
+            if (!barcode) {
+                showError('Enter a barcode number');
+                return;
+            }
+            resultEl.innerHTML = '<div class="text-muted">Looking up...</div>';
+            try {
+                const res = await api.lookupBarcode(barcode);
+                if (res.success && res.data) {
+                    const p = res.data;
+                    const inStock = p.quantity_in_stock > 0;
+                    resultEl.innerHTML = `
+                        <div class="alert alert-${inStock ? 'success' : 'warning'} mb-0">
+                            <strong>${p.product_name || p.name}</strong> — ${formatCurrency(p.selling_price || p.price)}
+                            · Stock: ${p.quantity_in_stock ?? 'N/A'}
+                            ${inStock ? `<a href="sales.html" class="btn btn-sm btn-primary ms-2">Open POS</a>` : '<span class="text-danger ms-2">Out of stock</span>'}
+                        </div>`;
+                } else {
+                    resultEl.innerHTML = '<div class="alert alert-danger mb-0">Barcode not found</div>';
+                }
+            } catch (err) {
+                resultEl.innerHTML = `<div class="alert alert-danger mb-0">${err.message || 'Barcode not found'}</div>`;
+            }
+        }
+
+        document.getElementById('barcodeInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); lookupBarcode(); }
+        });
+
+        async function loadCashSummary() {
+            const date = document.getElementById('cashDate').value;
+            if (!date) return;
+            try {
+                const res = await api.getMyCashierSummary(date);
+                if (res.success) {
+                    const d = res.data;
+                    document.getElementById('cashSummarySection').style.display = 'flex';
+                    document.getElementById('expectedCash').textContent = formatCurrency(d.expected_amount);
+                    const balance = d.balance;
+                    const statusEl = document.getElementById('cashStatus');
+                    if (!balance) statusEl.textContent = 'Not submitted';
+                    else if (balance.status === 'pending') statusEl.textContent = 'Pending review';
+                    else if (balance.status === 'approved') statusEl.textContent = 'Approved';
+                    else statusEl.textContent = 'Flagged';
+                    document.getElementById('cashSubmitted').value = balance?.submitted_amount ?? d.expected_amount ?? '';
+                    document.getElementById('cashNotes').value = balance?.notes || '';
+                }
+            } catch (e) { showError(e.message); }
+        }
+
+        async function submitMyCash(e) {
+            e.preventDefault();
+            try {
+                const res = await api.submitMyCashierBalance({
+                    submitted_amount: parseFloat(document.getElementById('cashSubmitted').value),
+                    balance_date: document.getElementById('cashDate').value,
+                    notes: document.getElementById('cashNotes').value.trim() || null,
+                });
+                if (res.success) { showSuccess(res.message); loadCashSummary(); }
+            } catch (err) { showError(err.message); }
         }
 
         function viewSaleDetails(saleId) {
             window.location.href = `sales.html#sale-${saleId}`;
         }
 
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    showSuccess('Logged out successfully');
-                    setTimeout(() => window.location.href = '../index.html', 1000);
-                } catch (error) {
-                    showError('Logout failed');
-                }
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', loadDashboard);
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('cashDate').value = new Date().toISOString().split('T')[0];
+            loadDashboard();
+            loadCashSummary();
+        });
     </script>
 </body>
 </html>

@@ -15,7 +15,7 @@
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
             <div class="d-flex align-items-center gap-2">
                 <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="userName">User</span>
+                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
                 </span>
                 <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
             </div>
@@ -93,7 +93,7 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Full Name</label>
-                            <input type="text" class="form-control" id="userName" required>
+                            <input type="text" class="form-control" id="userFullName" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Username</label>
@@ -230,7 +230,7 @@
             const user = allUsers.find(u => u.id === id);
             if (user) {
                 editingId = id;
-                document.getElementById('userName').value = user.full_name;
+                document.getElementById('userFullName').value = user.full_name;
                 document.getElementById('userUsername').value = user.username;
                 document.getElementById('userRole').value = user.role;
                 document.getElementById('userBranch').value = user.branch_id || '';
@@ -246,7 +246,7 @@
             event.preventDefault();
 
             const data = {
-                full_name: document.getElementById('userName').value.trim(),
+                full_name: document.getElementById('userFullName').value.trim(),
                 username: document.getElementById('userUsername').value.trim(),
                 role: document.getElementById('userRole').value,
                 branch_id: document.getElementById('userBranch').value || null,
@@ -303,18 +303,6 @@
                 }
             } catch (error) {
                 showError(error.message);
-            }
-        }
-
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    showSuccess('Logged out successfully');
-                    setTimeout(() => window.location.href = '../index.html', 1000);
-                } catch (error) {
-                    showError('Logout failed');
-                }
             }
         }
 

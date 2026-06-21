@@ -226,7 +226,7 @@ const getSalesAgentDashboard = async (req, res) => {
       `
       SELECT 
         s.id, s.receipt_number, s.total_amount, s.amount_paid, s.change_given,
-        s.created_at,
+        s.status, s.sale_date, s.created_at,
         COUNT(si.id) as item_count
       FROM sales s
       LEFT JOIN sale_items si ON s.id = si.sale_id
@@ -254,6 +254,7 @@ const getSalesAgentDashboard = async (req, res) => {
           total_amount: parseFloat(row.total_amount),
           amount_paid: parseFloat(row.amount_paid),
           change_given: parseFloat(row.change_given),
+          status: row.status || 'completed',
         })),
       },
     });

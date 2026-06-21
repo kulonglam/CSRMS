@@ -1,7 +1,7 @@
 // Shared navigation and role helpers
 const SIDEBARS = {
   director: [
-    { href: 'dashboard-director.html', icon: 'fa-chart-line', label: 'Dashboard', page: 'dashboard' },
+    { href: 'dashboard-director.html', icon: 'fa-th', label: 'Dashboard', page: 'dashboard' },
     { href: 'categories.html', icon: 'fa-list', label: 'Categories', page: 'categories' },
     { href: 'products.html', icon: 'fa-box', label: 'Products', page: 'products' },
     { href: 'branches.html', icon: 'fa-sitemap', label: 'Branches', page: 'branches' },
@@ -13,7 +13,7 @@ const SIDEBARS = {
     { href: 'audit-logs.html', icon: 'fa-history', label: 'Audit Logs', page: 'audit-logs' },
   ],
   manager: [
-    { href: 'dashboard-manager.html', icon: 'fa-chart-line', label: 'Dashboard', page: 'dashboard' },
+    { href: 'dashboard-manager.html', icon: 'fa-th', label: 'Dashboard', page: 'dashboard' },
     { href: 'products.html', icon: 'fa-box', label: 'Products', page: 'products' },
     { href: 'procurement.html', icon: 'fa-truck', label: 'Procurement', page: 'procurement' },
     { href: 'inventory.html', icon: 'fa-warehouse', label: 'Inventory', page: 'inventory' },
@@ -24,7 +24,7 @@ const SIDEBARS = {
     { href: 'audit-logs.html', icon: 'fa-history', label: 'Audit Logs', page: 'audit-logs' },
   ],
   sales_agent: [
-    { href: 'dashboard-agent.html', icon: 'fa-chart-line', label: 'Dashboard', page: 'dashboard' },
+    { href: 'dashboard-agent.html', icon: 'fa-th', label: 'Dashboard', page: 'dashboard' },
     { href: 'products.html', icon: 'fa-box', label: 'Available Products', page: 'products' },
     { href: 'sales.html', icon: 'fa-shopping-cart', label: 'My Sales', page: 'sales' },
     { href: 'audit-logs.html', icon: 'fa-history', label: 'Activity Log', page: 'audit-logs' },
@@ -64,7 +64,7 @@ function renderSidebar(activePage) {
 
 function setupNavbar() {
   const user = auth.getCurrentUser();
-  const nameEl = document.getElementById('navUserName') || document.getElementById('userName');
+  const nameEl = document.getElementById('navUserName');
   if (nameEl) nameEl.textContent = user?.full_name || 'User';
   const branchEl = document.getElementById('branchName');
   if (branchEl && user?.branch_name) {
@@ -78,7 +78,8 @@ function injectNavExtras() {
   if (!nav) return;
   const logoutBtn = nav.querySelector('[onclick*="handleLogout"]');
   if (!logoutBtn) return;
-  if (!nav.querySelector('.nav-password')) {
+  const onChangePassword = /change-password\.html$/i.test(window.location.pathname);
+  if (!onChangePassword && !nav.querySelector('.nav-password')) {
     logoutBtn.insertAdjacentHTML('beforebegin', `
       <a href="change-password.html" class="btn btn-outline-light btn-sm nav-password" title="Change Password"><i class="fas fa-key"></i></a>
     `);
@@ -115,8 +116,9 @@ async function loadNotificationBadge() {
   }
 }
 
-function initPage(activePage) {
+function initPage(activePage, options = {}) {
   setupNavbar();
+  if (options.navbarOnly) return;
   renderSidebar(activePage);
   applyRoleRestrictions();
   loadNotificationBadge();

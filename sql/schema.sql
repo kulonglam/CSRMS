@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   branch_id     INT REFERENCES branches(id) ON DELETE SET NULL,
   full_name     VARCHAR(150) NOT NULL,
   username      VARCHAR(80) NOT NULL UNIQUE,
+  email         VARCHAR(255) UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   role          VARCHAR(30) NOT NULL CHECK (role IN ('director', 'manager', 'sales_agent')),
   status        VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
@@ -113,13 +114,14 @@ CREATE TABLE IF NOT EXISTS cashier_balancing (
   id              SERIAL PRIMARY KEY,
   branch_id       INT NOT NULL REFERENCES branches(id) ON DELETE RESTRICT,
   sales_agent_id  INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  manager_id      INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+  manager_id      INT REFERENCES users(id) ON DELETE SET NULL,
   balance_date    DATE NOT NULL DEFAULT CURRENT_DATE,
   expected_amount NUMERIC(12, 2) NOT NULL,
   submitted_amount NUMERIC(12, 2) NOT NULL,
   variance        NUMERIC(12, 2) GENERATED ALWAYS AS (submitted_amount - expected_amount) STORED,
   notes           TEXT,
   status          VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'flagged')),
+  agent_submitted_at TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (sales_agent_id, balance_date)
 );
@@ -179,3 +181,24 @@ CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_branch ON notifications(branch_id);
+
+-- Revoked JWT tokens (logout invalidation)
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+  jti         VARCHAR(64) PRIMARY KEY,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires ON revoked_tokens(expires_at);
+
+-- Password reset tokens
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          SERIAL PRIMARY KEY,
+  user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  VARCHAR(128) NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);

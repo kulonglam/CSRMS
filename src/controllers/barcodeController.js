@@ -106,14 +106,17 @@ const removeBarcode = async (req, res, next) => {
 // GET /api/barcodes/lookup/:barcode  — used by sales agent to scan
 const lookupBarcode = async (req, res, next) => {
   try {
+    const branch_id = req.user.branch_id;
     const result = await query(
       `SELECT pb.barcode_number, p.id AS product_id, p.name AS product_name,
-              p.selling_price, p.status AS product_status, c.name AS category_name
+              p.selling_price, p.status AS product_status, c.name AS category_name,
+              COALESCE(i.quantity_available, 0) AS quantity_in_stock
        FROM product_barcodes pb
        JOIN products p ON p.id = pb.product_id
        JOIN categories c ON c.id = p.category_id
+       LEFT JOIN inventory i ON p.id = i.product_id AND i.branch_id = $2
        WHERE pb.barcode_number = $1 AND pb.status = 'active'`,
-      [req.params.barcode]
+      [req.params.barcode, branch_id]
     );
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: 'Barcode not found or inactive.' });

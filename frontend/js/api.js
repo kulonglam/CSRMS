@@ -74,6 +74,14 @@ class APIClient {
     return this.request('POST', '/auth/change-password', { current_password, new_password });
   }
 
+  async forgotPassword(username) {
+    return this.request('POST', '/auth/forgot-password', { username });
+  }
+
+  async resetPassword(token, new_password) {
+    return this.request('POST', '/auth/reset-password', { token, new_password });
+  }
+
   // Categories
   async getCategories() {
     return this.request('GET', '/categories');
@@ -191,10 +199,6 @@ class APIClient {
     return this.request('GET', `/procurements${query ? '?' + query : ''}`);
   }
 
-  async getProcurement(id) {
-    return this.request('GET', `/procurements/${id}`);
-  }
-
   async createProcurement(data) {
     return this.request('POST', '/procurements', data);
   }
@@ -229,6 +233,14 @@ class APIClient {
 
   async submitCashierBalance(data) {
     return this.request('POST', '/cashier-balancing', data);
+  }
+
+  async getMyCashierSummary(date) {
+    return this.request('GET', `/cashier-balancing/my-summary?date=${date}`);
+  }
+
+  async submitMyCashierBalance(data) {
+    return this.request('POST', '/cashier-balancing/submit', data);
   }
 
   async approveCashierBalance(id) {

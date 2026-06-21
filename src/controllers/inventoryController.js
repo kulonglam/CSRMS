@@ -1,12 +1,17 @@
 const { query, getClient } = require('../config/database');
 const { auditLog } = require('../middleware/audit');
 const { createLowStockNotification } = require('../utils/notifications');
+const {
+  getEffectiveBranchId,
+  assertRecordBranch,
+  handleAccessError,
+} = require('../utils/branchAccess');
 
 // GET /api/inventory
 const getInventory = async (req, res, next) => {
   try {
     const { branch_id, low_stock, out_of_stock, search } = req.query;
-    const effectiveBranchId = req.user.role === 'manager' ? req.user.branch_id : branch_id;
+    const effectiveBranchId = getEffectiveBranchId(req.user, branch_id);
 
     let sql = `SELECT i.id, i.quantity_available, i.updated_at,
                       p.id AS product_id, p.name AS product_name, p.reorder_level,
@@ -52,8 +57,12 @@ const getInventoryItem = async (req, res, next) => {
     );
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: 'Inventory record not found.' });
+
+    assertRecordBranch(req.user, result.rows[0].branch_id);
+
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    if (handleAccessError(res, err, next)) return;
     next(err);
   }
 };

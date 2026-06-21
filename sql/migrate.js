@@ -24,6 +24,14 @@ async function migrate() {
     // Execute schema
     await client.query(schema);
 
+    // Apply incremental patches for existing databases
+    const patchesPath = path.join(__dirname, 'patches.sql');
+    if (fs.existsSync(patchesPath)) {
+      const patches = fs.readFileSync(patchesPath, 'utf8');
+      await client.query(patches);
+      console.log('✓ Database patches applied');
+    }
+
     console.log('✓ Database schema created successfully');
     console.log('✓ All migrations completed\n');
 
@@ -50,6 +58,4 @@ async function migrate() {
 }
 
 // Run migration
-migrate();
-
 migrate();

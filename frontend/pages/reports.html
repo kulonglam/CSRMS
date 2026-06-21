@@ -45,9 +45,14 @@
                         <h1><i class="fas fa-file-chart-line me-2"></i>Reports</h1>
                         <p>Generate and view business reports</p>
                     </div>
-                    <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i>Print Report
-                    </button>
+                    <div class="d-flex gap-2 no-print">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                            <i class="fas fa-print me-1"></i>Print
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="exportReportPdf()">
+                            <i class="fas fa-file-pdf me-1"></i>Export PDF
+                        </button>
+                    </div>
                 </div>
 
                 <ul class="nav nav-tabs mb-3 no-print" id="reportTabs"></ul>
@@ -60,20 +65,19 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/auth.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="../js/export.js"></script>
     <script src="../js/nav.js"></script>
 
     <script>
         requireAuth();
 
         const user = auth.getCurrentUser();
-        const userRole = user?.role;
-        const isDirector = userRole === 'director';
-        const isManager = userRole === 'manager';
 
-        if (!isDirector && !isManager) {
+        if (!isDirector() && !isManager()) {
             showError('Unauthorized access');
             setTimeout(() => auth.redirectToDashboard(), 1500);
         }
@@ -83,7 +87,7 @@
         let branches = [];
         let activeReport = null;
 
-        const REPORT_TABS = isDirector ? [
+        const REPORT_TABS = isDirector() ? [
             { id: 'company', label: 'Company Performance', icon: 'fa-building' },
             { id: 'daily', label: 'Daily Sales', icon: 'fa-calendar-day' },
             { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-area' },
@@ -126,7 +130,7 @@
         }
 
         function branchFilterHtml() {
-            if (!isDirector) return '';
+            if (!isDirector()) return '';
             return `
                 <div class="col-md-3">
                     <select class="form-control" id="filterBranch">
@@ -154,10 +158,10 @@
                     filters = `
                         <div class="row mb-3 no-print">
                             <div class="col-md-3"><input type="date" class="form-control" id="filterDate" value="${today()}"></div>
-                            ${isDirector ? branchFilterHtml() : ''}
+                            ${isDirector() ? branchFilterHtml() : ''}
                             <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('daily')"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
-                        <div id="reportBody">${isDirector ? '<div class="text-center text-muted py-4">Select a branch and click Generate</div>' : '<div class="text-center text-muted py-4">Loading...</div>'}</div>`;
+                        <div id="reportBody">${isDirector() ? '<div class="text-center text-muted py-4">Select a branch and click Generate</div>' : '<div class="text-center text-muted py-4">Loading...</div>'}</div>`;
                     break;
                 case 'trends':
                     filters = `
@@ -356,8 +360,8 @@
         async function loadDailyReport(body) {
             const date = document.getElementById('filterDate').value;
             const branchEl = document.getElementById('filterBranch');
-            const branchId = isDirector ? branchEl?.value : null;
-            if (isDirector && !branchId) {
+            const branchId = isDirector() ? branchEl?.value : null;
+            if (isDirector() && !branchId) {
                 body.innerHTML = '<div class="alert alert-info">Please select a branch to view daily sales.</div>';
                 return;
             }
@@ -548,7 +552,7 @@
         }
 
         async function loadBranches() {
-            if (!isDirector) return;
+            if (!isDirector()) return;
             try {
                 const response = await api.getBranches();
                 if (response.success) branches = response.data || [];
@@ -557,15 +561,9 @@
             }
         }
 
-        async function handleLogout() {
-            if (!confirm('Are you sure you want to logout?')) return;
-            try {
-                await auth.logout();
-                showSuccess('Logged out successfully');
-                setTimeout(() => window.location.href = '../index.html', 1000);
-            } catch (error) {
-                showError('Logout failed');
-            }
+        function exportReportPdf() {
+            const names = { company: 'company-performance', daily: 'daily-sales', trends: 'sales-trends', inventory: 'inventory', procurement: 'procurement', cashier: 'cashier-balancing' };
+            exportElementToPdf('reportBody', `csrms-${names[activeReport] || 'report'}-${today()}.pdf`);
         }
 
         renderTabs();

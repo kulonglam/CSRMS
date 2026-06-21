@@ -1,10 +1,19 @@
-// Receipt Controller
 const { query } = require('../config/database');
 const PDFDocument = require('pdfkit');
+const {
+  getEffectiveBranchId,
+  assertSaleAccess,
+  handleAccessError,
+} = require('../utils/branchAccess');
+
+function formatUgCurrency(amount) {
+  return `USh ${Math.round(parseFloat(amount) || 0).toLocaleString('en-UG')}`;
+}
 
 const getReceipts = async (req, res) => {
   try {
     const { sale_id, branch_id, start_date, end_date } = req.query;
+    const effectiveBranchId = getEffectiveBranchId(req.user, branch_id);
 
     let sql = `
       SELECT 
@@ -19,13 +28,14 @@ const getReceipts = async (req, res) => {
     const params = [];
     let paramCount = 1;
 
+    if (effectiveBranchId) {
+      sql += ` AND s.branch_id = $${paramCount++}`;
+      params.push(effectiveBranchId);
+    }
+
     if (sale_id) {
       sql += ` AND s.id = $${paramCount++}`;
       params.push(sale_id);
-    }
-    if (branch_id) {
-      sql += ` AND s.branch_id = $${paramCount++}`;
-      params.push(branch_id);
     }
     if (start_date) {
       sql += ` AND s.sale_date >= $${paramCount++}`;
@@ -79,6 +89,8 @@ const getReceipt = async (req, res) => {
       });
     }
 
+    assertSaleAccess(req.user, saleResult.rows[0]);
+
     // Get sale items
     const itemsResult = await query(
       `
@@ -100,6 +112,9 @@ const getReceipt = async (req, res) => {
       data: receipt,
     });
   } catch (error) {
+    if (error.status === 403) {
+      return res.status(403).json({ success: false, message: error.message });
+    }
     console.error('Get receipt error:', error);
     res.status(500).json({
       success: false,
@@ -133,6 +148,8 @@ const downloadReceiptPDF = async (req, res) => {
         message: 'Sale not found',
       });
     }
+
+    assertSaleAccess(req.user, saleResult.rows[0]);
 
     const itemsResult = await query(
       `
@@ -188,8 +205,8 @@ const downloadReceiptPDF = async (req, res) => {
     items.forEach((item) => {
       doc.text(item.product_name.substring(0, 30), 40, yPosition);
       doc.text(item.quantity.toString(), 280, yPosition, { width: 40, align: 'right' });
-      doc.text(`USh${parseFloat(item.unit_price).toFixed(2)}`, 330, yPosition, { width: 60, align: 'right' });
-      doc.text(`USh${parseFloat(item.subtotal).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+      doc.text(formatUgCurrency(item.unit_price), 330, yPosition, { width: 60, align: 'right' });
+      doc.text(formatUgCurrency(item.subtotal), 400, yPosition, { width: 80, align: 'right' });
       yPosition += 15;
     });
 
@@ -199,16 +216,16 @@ const downloadReceiptPDF = async (req, res) => {
 
     doc.font('Helvetica-Bold').fontSize(10);
     doc.text('Total Amount:', 280, yPosition, { width: 120, align: 'right' });
-    doc.text(`USh${parseFloat(sale.total_amount).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+    doc.text(formatUgCurrency(sale.total_amount), 400, yPosition, { width: 80, align: 'right' });
     yPosition += 20;
 
     doc.font('Helvetica').fontSize(9);
     doc.text('Amount Paid:', 280, yPosition, { width: 120, align: 'right' });
-    doc.text(`USh${parseFloat(sale.amount_paid).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+    doc.text(formatUgCurrency(sale.amount_paid), 400, yPosition, { width: 80, align: 'right' });
     yPosition += 15;
 
     doc.text('Change Given:', 280, yPosition, { width: 120, align: 'right' });
-    doc.text(`USh${parseFloat(sale.change_given).toFixed(2)}`, 400, yPosition, { width: 80, align: 'right' });
+    doc.text(formatUgCurrency(sale.change_given), 400, yPosition, { width: 80, align: 'right' });
 
     // Footer
     doc.moveDown(2);
@@ -217,6 +234,9 @@ const downloadReceiptPDF = async (req, res) => {
 
     doc.end();
   } catch (error) {
+    if (error.status === 403) {
+      return res.status(403).json({ success: false, message: error.message });
+    }
     console.error('Download receipt error:', error);
     res.status(500).json({
       success: false,
@@ -251,6 +271,8 @@ const printReceipt = async (req, res) => {
       });
     }
 
+    assertSaleAccess(req.user, saleResult.rows[0]);
+
     // Log print action
     await query(
       'INSERT INTO audit_logs (user_id, action, table_name, record_id) VALUES ($1, $2, $3, $4)',
@@ -263,6 +285,9 @@ const printReceipt = async (req, res) => {
       data: saleResult.rows[0],
     });
   } catch (error) {
+    if (error.status === 403) {
+      return res.status(403).json({ success: false, message: error.message });
+    }
     console.error('Print receipt error:', error);
     res.status(500).json({
       success: false,

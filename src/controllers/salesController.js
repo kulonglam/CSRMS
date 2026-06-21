@@ -2,12 +2,18 @@ const { query, getClient } = require('../config/database');
 const { auditLog } = require('../middleware/audit');
 const { generateReceiptNumber } = require('../utils/helpers');
 const { createLowStockNotification } = require('../utils/notifications');
+const {
+  getEffectiveBranchId,
+  assertSaleAccess,
+  handleAccessError,
+} = require('../utils/branchAccess');
 
 // GET /api/sales
 const getSales = async (req, res, next) => {
   try {
     const { branch_id, agent_id, from_date, to_date, status } = req.query;
-    const effectiveBranchId = req.user.role !== 'director' ? req.user.branch_id : branch_id;
+    const effectiveBranchId = getEffectiveBranchId(req.user, branch_id);
+    const effectiveAgentId = req.user.role === 'sales_agent' ? req.user.id : agent_id;
 
     let sql = `SELECT s.id, s.receipt_number, s.total_amount, s.amount_paid, s.change_given,
                       s.status, s.sale_date, s.created_at,
@@ -20,7 +26,7 @@ const getSales = async (req, res, next) => {
     const params = [];
 
     if (effectiveBranchId) { params.push(effectiveBranchId); sql += ` AND s.branch_id = $${params.length}`; }
-    if (agent_id)          { params.push(agent_id);          sql += ` AND s.sales_agent_id = $${params.length}`; }
+    if (effectiveAgentId)  { params.push(effectiveAgentId);  sql += ` AND s.sales_agent_id = $${params.length}`; }
     if (from_date)         { params.push(from_date);         sql += ` AND s.sale_date >= $${params.length}`; }
     if (to_date)           { params.push(to_date);           sql += ` AND s.sale_date <= $${params.length}`; }
     if (status)            { params.push(status);            sql += ` AND s.status = $${params.length}`; }
@@ -47,6 +53,8 @@ const getSale = async (req, res, next) => {
     if (saleResult.rows.length === 0)
       return res.status(404).json({ success: false, message: 'Sale not found.' });
 
+    assertSaleAccess(req.user, saleResult.rows[0]);
+
     const itemsResult = await query(
       `SELECT si.*, p.name AS product_name, c.name AS category_name
        FROM sale_items si
@@ -61,6 +69,7 @@ const getSale = async (req, res, next) => {
       data: { ...saleResult.rows[0], items: itemsResult.rows },
     });
   } catch (err) {
+    if (handleAccessError(res, err, next)) return;
     next(err);
   }
 };
@@ -186,6 +195,8 @@ const voidSale = async (req, res, next) => {
     if (sale.rows[0].status === 'voided')
       return res.status(400).json({ success: false, message: 'Sale is already voided.' });
 
+    assertSaleAccess(req.user, sale.rows[0]);
+
     // Restore inventory
     const items = await client.query('SELECT * FROM sale_items WHERE sale_id = $1', [req.params.id]);
     for (const item of items.rows) {
@@ -206,6 +217,7 @@ const voidSale = async (req, res, next) => {
     res.json({ success: true, message: 'Sale voided and inventory restored.' });
   } catch (err) {
     await client.query('ROLLBACK');
+    if (handleAccessError(res, err, next)) return;
     next(err);
   } finally {
     client.release();

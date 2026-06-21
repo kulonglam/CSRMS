@@ -17,7 +17,6 @@
                     <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
                     <small class="ms-2" id="branchName"></small>
                 </span>
-                <a href="change-password.html" class="btn btn-outline-light btn-sm"><i class="fas fa-key"></i></a>
                 <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
             </div>
         </div>
@@ -209,12 +208,6 @@
                     loadProcurements();
                 }
             } catch (err) { showError(err.message); }
-        }
-
-        async function handleLogout() {
-            if (!confirm('Logout?')) return;
-            await auth.logout();
-            window.location.href = '../index.html';
         }
 
         document.getElementById('procDate').value = new Date().toISOString().split('T')[0];

@@ -195,7 +195,6 @@
         const user = auth.getCurrentUser();
         const userRole = user?.role;
         const canAdjust = userRole === 'manager';
-        const isDirector = userRole === 'director';
 
         initPage('inventory');
 
@@ -203,7 +202,7 @@
             document.getElementById('adjustmentsTabItem').style.display = 'none';
             document.getElementById('actionsCol').style.display = 'none';
         }
-        if (!isDirector) {
+        if (!isDirector()) {
             document.getElementById('branchCol').style.display = 'none';
         }
 
@@ -226,7 +225,7 @@
         }
 
         async function loadBranches() {
-            if (!isDirector) return;
+            if (!isDirector()) return;
             try {
                 const response = await api.getBranches();
                 if (response.success) {
@@ -248,7 +247,7 @@
             if (search) params.search = search;
             if (stockFilter === 'low') params.low_stock = 'true';
             if (stockFilter === 'out') params.out_of_stock = 'true';
-            if (isDirector && document.getElementById('branchFilter').value) {
+            if (isDirector() && document.getElementById('branchFilter').value) {
                 params.branch_id = document.getElementById('branchFilter').value;
             }
 
@@ -265,8 +264,8 @@
         }
 
         function displayInventory(items) {
-            const colSpan = 6 + (isDirector ? 1 : 0) + (canAdjust ? 1 : 0);
-            const showBranch = isDirector;
+            const colSpan = 6 + (isDirector() ? 1 : 0) + (canAdjust ? 1 : 0);
+            const showBranch = isDirector();
 
             const html = items.map(item => {
                 const value = item.quantity_available * parseFloat(item.cost_price || 0);
@@ -365,17 +364,6 @@
                 `).join('') || '<tr><td colspan="6" class="text-center text-muted">No adjustments recorded</td></tr>';
             } catch (error) {
                 showError('Failed to load adjustments');
-            }
-        }
-
-        async function handleLogout() {
-            if (!confirm('Are you sure you want to logout?')) return;
-            try {
-                await auth.logout();
-                showSuccess('Logged out successfully');
-                setTimeout(() => window.location.href = '../index.html', 1000);
-            } catch (error) {
-                showError('Logout failed');
             }
         }
 

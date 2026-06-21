@@ -250,18 +250,15 @@
 
         const user = auth.getCurrentUser();
         const userRole = user?.role;
-        const isAgent = userRole === 'sales_agent';
-        const isManager = userRole === 'manager';
-        const isDirector = userRole === 'director';
-        const canVoid = isManager;
-        const canUsePOS = isAgent;
+        const canVoid = isManager();
+        const canUsePOS = isAgent();
 
         initPage('sales');
 
-        if (isAgent) {
+        if (isAgent()) {
             document.getElementById('pageTitle').textContent = 'Sales';
             document.getElementById('pageSubtitle').textContent = 'Record sales and view your transaction history';
-        } else if (isManager) {
+        } else if (isManager()) {
             document.getElementById('pageSubtitle').textContent = 'View branch sales and manage transactions';
         }
 
@@ -274,7 +271,7 @@
             document.getElementById('historyTab').classList.add('show', 'active');
         }
 
-        if (!isDirector) {
+        if (!isDirector()) {
             document.getElementById('historyBranchCol').style.display = 'none';
         }
 
@@ -519,7 +516,7 @@
         }
 
         async function loadBranches() {
-            if (!isDirector) return;
+            if (!isDirector()) return;
             try {
                 const response = await api.getBranches();
                 if (response.success) {
@@ -542,10 +539,10 @@
             if (fromDate) params.from_date = fromDate;
             if (toDate) params.to_date = toDate;
             if (status) params.status = status;
-            if (isDirector && document.getElementById('branchFilter').value) {
+            if (isDirector() && document.getElementById('branchFilter').value) {
                 params.branch_id = document.getElementById('branchFilter').value;
             }
-            if (isAgent) {
+            if (isAgent()) {
                 params.agent_id = user.id;
             }
 
@@ -562,7 +559,7 @@
         }
 
         function displaySales(sales) {
-            const showBranch = isDirector;
+            const showBranch = isDirector();
             const colSpan = showBranch ? 9 : 8;
 
             document.getElementById('salesTable').innerHTML = sales.map(sale => `
@@ -668,17 +665,6 @@
                 }
             } catch (error) {
                 showError(error.message);
-            }
-        }
-
-        async function handleLogout() {
-            if (!confirm('Are you sure you want to logout?')) return;
-            try {
-                await auth.logout();
-                showSuccess('Logged out successfully');
-                setTimeout(() => window.location.href = '../index.html', 1000);
-            } catch (error) {
-                showError('Logout failed');
             }
         }
 

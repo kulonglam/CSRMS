@@ -55,14 +55,14 @@ async function seed() {
     const agentHash    = await bcrypt.hash('Agent@123',    12);
 
     const userRes = await client.query(`
-      INSERT INTO users (full_name, username, password_hash, role, branch_id, status) VALUES
-        ('Crown Director',           'director', $1, 'director',   NULL,          'active'),
-        ('Branch Manager - Kampala', 'manager1', $2, 'manager',    $3,            'active'),
-        ('Branch Manager - Entebbe', 'manager2', $2, 'manager',    $4,            'active'),
-        ('Sales Agent 1',            'agent1',   $5, 'sales_agent',$3,            'active'),
-        ('Sales Agent 2',            'agent2',   $5, 'sales_agent',$3,            'active'),
-        ('Sales Agent 3',            'agent3',   $5, 'sales_agent',$4,            'active')
-      ON CONFLICT (username) DO NOTHING
+      INSERT INTO users (full_name, username, email, password_hash, role, branch_id, status) VALUES
+        ('Crown Director',           'director', 'director@crowns.ug', $1, 'director',   NULL,          'active'),
+        ('Branch Manager - Kampala', 'manager1', 'manager1@crowns.ug', $2, 'manager',    $3,            'active'),
+        ('Branch Manager - Entebbe', 'manager2', 'manager2@crowns.ug', $2, 'manager',    $4,            'active'),
+        ('Sales Agent 1',            'agent1',   'agent1@crowns.ug',   $5, 'sales_agent',$3,            'active'),
+        ('Sales Agent 2',            'agent2',   'agent2@crowns.ug',   $5, 'sales_agent',$3,            'active'),
+        ('Sales Agent 3',            'agent3',   'agent3@crowns.ug',   $5, 'sales_agent',$4,            'active')
+      ON CONFLICT (username) DO UPDATE SET email = EXCLUDED.email
       RETURNING id, username, role
     `, [directorHash, managerHash, branchIds[0], branchIds[1], agentHash]);
     console.log(`✓ ${userRes.rows.length} users created`);

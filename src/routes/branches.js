@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
-const { getBranches, getBranch, createBranch, updateBranch } = require('../controllers/branchController');
+const { getBranches, getBranch, createBranch, updateBranch, deleteBranch } = require('../controllers/branchController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/errorHandler');
 
@@ -18,5 +18,7 @@ router.put('/:id', authorize('director'), [
   body('name').optional().trim().notEmpty(),
   validate,
 ], updateBranch);
+
+router.delete('/:id', authorize('director'), deleteBranch);
 
 module.exports = router;

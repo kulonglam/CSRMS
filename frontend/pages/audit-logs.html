@@ -113,8 +113,6 @@
         requireAuth();
 
         const user = auth.getCurrentUser();
-        const userRole = user?.role;
-        const isAgent = userRole === 'sales_agent';
 
         if (!auth.hasRole(['director', 'manager', 'sales_agent'])) {
             showError('Unauthorized access');
@@ -122,7 +120,7 @@
         }
 
         initPage('audit-logs');
-        if (isAgent) {
+        if (isAgent()) {
             document.getElementById('pageTitle').textContent = 'Activity Log';
             document.getElementById('pageSubtitle').textContent = 'View your recent system activity';
         }
@@ -258,17 +256,6 @@
         }
 
         const debouncedLoad = debounce(loadAuditLogs, 300);
-
-        async function handleLogout() {
-            if (!confirm('Are you sure you want to logout?')) return;
-            try {
-                await auth.logout();
-                showSuccess('Logged out successfully');
-                setTimeout(() => window.location.href = '../index.html', 1000);
-            } catch (error) {
-                showError('Logout failed');
-            }
-        }
 
         window.addEventListener('DOMContentLoaded', loadAuditLogs);
     </script>

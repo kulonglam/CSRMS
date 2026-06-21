@@ -13,7 +13,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="#">🏪 CSRMS</a>
             <div class="d-flex align-items-center gap-2">
-                <span class="text-light me-3"><i class="fas fa-user-circle me-2"></i><span id="userName">User</span></span>
+                <span class="text-light me-3"><i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span></span>
                 <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
             </div>
         </div>
@@ -75,7 +75,7 @@
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label">Branch Name</label>
-                            <input type="text" class="form-control" id="branchName" required>
+                            <input type="text" class="form-control" id="branchNameInput" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Location</label>
@@ -162,7 +162,7 @@
             const branch = allBranches.find(b => b.id === id);
             if (branch) {
                 editingId = id;
-                document.getElementById('branchName').value = branch.name;
+                document.getElementById('branchNameInput').value = branch.name;
                 document.getElementById('branchLocation').value = branch.location;
                 document.getElementById('branchStatus').value = branch.status;
                 new bootstrap.Modal(document.getElementById('branchModal')).show();
@@ -172,7 +172,7 @@
         async function saveBranch(event) {
             event.preventDefault();
             const data = {
-                name: document.getElementById('branchName').value.trim(),
+                name: document.getElementById('branchNameInput').value.trim(),
                 location: document.getElementById('branchLocation').value.trim(),
                 status: document.getElementById('branchStatus').value
             };
@@ -206,25 +206,13 @@
             try {
                 const response = await api.deleteBranch(id);
                 if (response.success) {
-                    showSuccess('Branch deleted');
+                    showSuccess(response.message || 'Branch removed');
                     loadBranches();
                 } else {
                     showError(response.message);
                 }
             } catch (error) {
                 showError(error.message);
-            }
-        }
-
-        async function handleLogout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await auth.logout();
-                    showSuccess('Logged out successfully');
-                    setTimeout(() => window.location.href = '../index.html', 1000);
-                } catch (error) {
-                    showError('Logout failed');
-                }
             }
         }
 
