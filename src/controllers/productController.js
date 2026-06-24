@@ -206,22 +206,35 @@ const updateProduct = async (req, res) => {
 const updatePrice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { selling_price } = req.body;
+    const { cost_price, selling_price } = req.body;
 
-    if (selling_price === undefined) {
+    if (cost_price === undefined && selling_price === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'Selling price is required',
+        message: 'At least one of cost_price or selling_price is required',
       });
     }
 
+    const fields = [];
+    const values = [];
+    if (cost_price !== undefined) {
+      fields.push(`cost_price = $${fields.length + 1}`);
+      values.push(cost_price);
+    }
+    if (selling_price !== undefined) {
+      fields.push(`selling_price = $${fields.length + 1}`);
+      values.push(selling_price);
+    }
+    fields.push('updated_at = NOW()');
+    values.push(id);
+
     const result = await query(
       `
-      UPDATE products SET selling_price = $1, updated_at = NOW()
-      WHERE id = $2
+      UPDATE products SET ${fields.join(', ')}
+      WHERE id = $${values.length}
       RETURNING id, name, cost_price, selling_price
       `,
-      [selling_price, id]
+      values
     );
 
     if (result.rows.length === 0) {

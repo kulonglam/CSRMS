@@ -7,6 +7,7 @@ const {
   agentSubmitBalance,
   createBalance,
   approveBalance,
+  rejectBalance,
 } = require('../controllers/cashierBalancingController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/errorHandler');
@@ -33,5 +34,10 @@ router.post('/', [
 ], createBalance);
 
 router.patch('/:id/approve', approveBalance);
+
+router.patch('/:id/reject', [
+  body('reason').trim().notEmpty().withMessage('Rejection reason is required.'),
+  validate,
+], rejectBalance);
 
 module.exports = router;

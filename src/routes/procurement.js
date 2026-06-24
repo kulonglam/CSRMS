@@ -1,6 +1,12 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
-const { getProcurements, getProcurement, createProcurement } = require('../controllers/procurementController');
+const {
+  getProcurements,
+  getProcurement,
+  createProcurement,
+  updateProcurement,
+  deleteProcurement,
+} = require('../controllers/procurementController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/errorHandler');
 
@@ -16,5 +22,14 @@ router.post('/', authorize('manager'), [
   body('cost_price').isFloat({ min: 0 }).withMessage('Cost price must be a positive number.'),
   validate,
 ], createProcurement);
+
+router.put('/:id', authorize('manager'), [
+  body('supplier_name').optional().trim().notEmpty(),
+  body('quantity_received').optional().isInt({ min: 1 }),
+  body('cost_price').optional().isFloat({ min: 0 }),
+  validate,
+], updateProcurement);
+
+router.delete('/:id', authorize('manager'), deleteProcurement);
 
 module.exports = router;

@@ -9,7 +9,7 @@ const auditLog = async ({ userId, action, tableName, recordId, oldValues, newVal
         userId || null,
         action,
         tableName || null,
-        recordId || null,
+        recordId ?? null,
         oldValues ? JSON.stringify(oldValues) : null,
         newValues ? JSON.stringify(newValues) : null,
         ipAddress || null,

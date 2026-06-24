@@ -25,3 +25,8 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255) UNIQUE;
+
+-- Allow rejected cashier balance status
+ALTER TABLE cashier_balancing DROP CONSTRAINT IF EXISTS cashier_balancing_status_check;
+ALTER TABLE cashier_balancing ADD CONSTRAINT cashier_balancing_status_check
+  CHECK (status IN ('pending', 'approved', 'flagged', 'rejected'));

@@ -74,23 +74,6 @@ class AuthManager {
     return this.user?.role === role;
   }
 
-  // Verify session
-  async verifySession() {
-    if (!this.isAuthenticated()) return false;
-    try {
-      const response = await api.getCurrentUser();
-      if (response.success) {
-        this.user = response.data;
-        localStorage.setItem('user', JSON.stringify(this.user));
-        return true;
-      }
-      return false;
-    } catch {
-      this.clearSession();
-      return false;
-    }
-  }
-
   // Redirect based on role
   redirectToDashboard() {
     const role = this.getUserRole();
@@ -115,6 +98,7 @@ class AuthManager {
 
 // Create global auth instance
 const auth = new AuthManager();
+window.auth = auth;
 
 // Protect pages - redirect to login if not authenticated
 function requireAuth() {
@@ -144,6 +128,48 @@ function bindActivityTracking() {
   });
 }
 
+function getLoginPath() {
+  return window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
+}
+
+function ensureSessionExpiredModal() {
+  if (document.getElementById('sessionExpiredModal')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal fade" id="sessionExpiredModal" tabindex="-1" aria-labelledby="sessionExpiredTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="sessionExpiredTitle">
+              <i class="fas fa-clock me-2 text-warning" aria-hidden="true"></i>Session expired
+            </h5>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Your session expired due to inactivity. Please sign in again to continue.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="sessionExpiredBtn">Sign in</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function showSessionExpiredModal() {
+  if (typeof bootstrap === 'undefined') {
+    window.location.href = getLoginPath();
+    return;
+  }
+  ensureSessionExpiredModal();
+  const modalEl = document.getElementById('sessionExpiredModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  document.getElementById('sessionExpiredBtn').onclick = () => {
+    modal.hide();
+    window.location.href = getLoginPath();
+  };
+  modal.show();
+}
+
 function checkSessionTimeout() {
   const loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
   const lastActivity = parseInt(localStorage.getItem('lastActivity') || loginTime.toString(), 10);
@@ -151,8 +177,7 @@ function checkSessionTimeout() {
 
   if (loginTime && now - lastActivity > SESSION_IDLE_MS) {
     auth.clearSession();
-    alert('Session expired due to inactivity. Please login again.');
-    window.location.href = '../index.html';
+    showSessionExpiredModal();
     return;
   }
 
@@ -186,22 +211,73 @@ function showSuccess(message) {
   showNotification(message, 'success');
 }
 
-// Show warning notification
-function showWarning(message) {
-  showNotification(message, 'warning');
+function ensureLogoutModal() {
+  if (document.getElementById('logoutConfirmModal')) return;
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmTitle" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="logoutConfirmTitle">
+              <i class="fas fa-sign-out-alt me-2 text-danger" aria-hidden="true"></i>Sign out
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Are you sure you want to logout? You will need to sign in again to continue.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-danger" id="logoutConfirmBtn">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function confirmLogout() {
+  return new Promise((resolve) => {
+    if (typeof bootstrap === 'undefined') {
+      resolve(window.confirm('Are you sure you want to logout?'));
+      return;
+    }
+
+    ensureLogoutModal();
+    const modalEl = document.getElementById('logoutConfirmModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const confirmBtn = document.getElementById('logoutConfirmBtn');
+    let confirmed = false;
+
+    const onConfirm = () => {
+      confirmed = true;
+      modal.hide();
+    };
+
+    const onHidden = () => {
+      confirmBtn.removeEventListener('click', onConfirm);
+      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+      resolve(confirmed);
+    };
+
+    confirmBtn.addEventListener('click', onConfirm);
+    modalEl.addEventListener('hidden.bs.modal', onHidden);
+    modal.show();
+  });
 }
 
 async function handleLogout() {
-  if (!confirm('Are you sure you want to logout?')) return;
+  const confirmed = await confirmLogout();
+  if (!confirmed) return;
   try {
     await auth.logout();
     showSuccess('Logged out successfully');
     setTimeout(() => {
-      window.location.href = window.location.pathname.includes('/pages/')
-        ? '../index.html'
-        : 'index.html';
-    }, 1000);
+      window.location.href = '/';
+    }, 500);
   } catch {
     showError('Logout failed');
   }
 }
+
+window.handleLogout = handleLogout;

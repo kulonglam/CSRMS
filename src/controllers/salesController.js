@@ -1,6 +1,6 @@
 const { query, getClient } = require('../config/database');
 const { auditLog } = require('../middleware/audit');
-const { generateReceiptNumber } = require('../utils/helpers');
+const { generateReceiptNumber, parsePagination, paginationMeta } = require('../utils/helpers');
 const { createLowStockNotification } = require('../utils/notifications');
 const {
   getEffectiveBranchId,
@@ -31,9 +31,23 @@ const getSales = async (req, res, next) => {
     if (to_date)           { params.push(to_date);           sql += ` AND s.sale_date <= $${params.length}`; }
     if (status)            { params.push(status);            sql += ` AND s.status = $${params.length}`; }
 
-    sql += ' ORDER BY s.created_at DESC';
-    const result = await query(sql, params);
-    res.json({ success: true, data: result.rows });
+    const fromJoin = ` FROM sales s
+               JOIN users u ON u.id = s.sales_agent_id
+               JOIN branches b ON b.id = s.branch_id
+               WHERE 1=1${sql.slice(sql.indexOf('WHERE 1=1') + 9)}`;
+
+    const countResult = await query(`SELECT COUNT(*)::int AS total${fromJoin}`, params);
+    const { page, limit, offset } = parsePagination(req.query);
+
+    sql += ` ORDER BY s.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    const result = await query(sql, [...params, limit, offset]);
+    const total = countResult.rows[0].total;
+
+    res.json({
+      success: true,
+      data: result.rows,
+      pagination: paginationMeta(page, limit, total),
+    });
   } catch (err) {
     next(err);
   }

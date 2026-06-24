@@ -4,23 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products - CSRMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css">
+    <script src="../js/layout.js"></script>
 </head>
 <body>
-    <nav class="navbar navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
-                    <small class="ms-2" id="branchName"></small>
-                </span>
-                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
-            </div>
-        </div>
-    </nav>
+        <div id="appNavbar"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -34,7 +22,7 @@
                         <h1><i class="fas fa-box me-2"></i><span id="pageTitle">Products</span></h1>
                         <p id="pageSubtitle">Manage your product inventory</p>
                     </div>
-                    <button class="btn btn-primary" data-manager-only id="addProductBtn" data-bs-toggle="modal" data-bs-target="#productModal" onclick="resetForm()">
+                    <button class="btn btn-primary" data-manager-only id="addProductBtn" data-bs-toggle="modal" data-bs-target="#productModal">
                         <i class="fas fa-plus me-2"></i>Add Product
                     </button>
                 </div>
@@ -64,15 +52,15 @@
                 <!-- Search & Filter -->
                 <div class="row mb-3">
                     <div class="col-md-4">
-                        <input type="text" class="form-control" id="searchInput" placeholder="Search products..." onkeyup="filterTable()">
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search products...">
                     </div>
                     <div class="col-md-4">
-                        <select class="form-control" id="categoryFilter" onchange="filterTable()">
+                        <select class="form-control" id="categoryFilter">
                             <option value="">All Categories</option>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <select class="form-control" id="statusFilter" onchange="filterTable()">
+                        <select class="form-control" id="statusFilter">
                             <option value="">All Statuses</option>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -114,7 +102,7 @@
                     <h5 class="modal-title" id="modalTitle">Add Product</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="productForm" onsubmit="saveProduct(event)">
+                <form id="productForm">
                     <div class="modal-body">
                         <div class="row">
                             <div class="col-md-8">
@@ -186,10 +174,10 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-info" id="manageBarcodesBtn" onclick="openBarcodeModal()">
+                    <button type="button" class="btn btn-info" id="manageBarcodesBtn">
                         <i class="fas fa-barcode me-1"></i>Manage Barcodes
                     </button>
-                    <button type="button" class="btn btn-warning" id="detailEditBtn" onclick="editFromDetail()">
+                    <button type="button" class="btn btn-warning" id="detailEditBtn">
                         <i class="fas fa-edit me-1"></i>Edit
                     </button>
                 </div>
@@ -206,7 +194,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="barcodeForm" onsubmit="addBarcode(event)" class="mb-3">
+                    <form id="barcodeForm" class="mb-3">
                         <div class="input-group">
                             <input type="text" class="form-control" id="newBarcode" placeholder="Enter barcode number" required>
                             <button type="submit" class="btn btn-primary">Add</button>
@@ -225,7 +213,7 @@
         <div class="modal-dialog modal-sm">
             <div class="modal-content">
                 <div class="modal-header"><h5 class="modal-title">Edit Barcode</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <form onsubmit="saveBarcodeEdit(event)">
+                <form id="editBarcodeForm">
                     <div class="modal-body">
                         <input type="hidden" id="editBarcodeId">
                         <div class="mb-3">
@@ -253,12 +241,18 @@
     <div class="modal fade" id="priceModal" tabindex="-1">
         <div class="modal-dialog modal-sm">
             <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title">Update Selling Price</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <form onsubmit="savePrice(event)">
+                <div class="modal-header"><h5 class="modal-title">Update Prices</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <form id="priceForm">
                     <div class="modal-body">
                         <input type="hidden" id="priceProductId">
-                        <label class="form-label">New Selling Price</label>
-                        <input type="number" class="form-control" id="newSellingPrice" step="0.01" min="0" required>
+                        <div class="mb-3">
+                            <label class="form-label" for="newCostPrice">Cost Price</label>
+                            <input type="number" class="form-control" id="newCostPrice" step="0.01" min="0">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="newSellingPrice">Selling Price</label>
+                            <input type="number" class="form-control" id="newSellingPrice" step="0.01" min="0">
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -269,15 +263,9 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-
-    <script src="../js/nav.js"></script>
-
+    
     <script>
-        requireAuth();
+        CSRMSLayout.boot(async () => {requireAuth();
 
         const user = auth.getCurrentUser();
         const userRole = user?.role;
@@ -285,6 +273,10 @@
         if (userRole === 'sales_agent') {
             document.getElementById('pageTitle').textContent = 'Available Products';
             document.getElementById('pageSubtitle').textContent = 'Browse products available at your branch';
+        } else if (userRole === 'director') {
+            document.getElementById('pageSubtitle').textContent = 'View company product catalog (read-only)';
+        } else if (userRole === 'manager') {
+            document.getElementById('pageSubtitle').textContent = 'Create and manage products, prices, and barcodes';
         }
         initPage('products');
         let allProducts = [];
@@ -292,6 +284,58 @@
         let editingId = null;
         let detailProductId = null;
         let barcodeProductId = null;
+        let currentBarcodes = [];
+
+        function bindEvents() {
+            document.getElementById('addProductBtn')?.addEventListener('click', resetForm);
+            document.getElementById('productForm').addEventListener('submit', saveProduct);
+            document.getElementById('manageBarcodesBtn').addEventListener('click', () => openBarcodeModal());
+            document.getElementById('detailEditBtn').addEventListener('click', editFromDetail);
+            document.getElementById('barcodeForm').addEventListener('submit', addBarcode);
+            document.getElementById('editBarcodeForm').addEventListener('submit', saveBarcodeEdit);
+            document.getElementById('priceForm').addEventListener('submit', savePrice);
+            document.getElementById('searchInput').addEventListener('keyup', filterTable);
+            document.getElementById('categoryFilter').addEventListener('change', filterTable);
+            document.getElementById('statusFilter').addEventListener('change', filterTable);
+            document.getElementById('productsTable').addEventListener('click', handleProductTableClick);
+            document.getElementById('barcodeList').addEventListener('click', handleBarcodeListClick);
+        }
+
+        function handleProductTableClick(e) {
+            const el = e.target.closest('[data-action]');
+            if (!el) return;
+            e.preventDefault();
+            const id = parseInt(el.dataset.id, 10);
+            switch (el.dataset.action) {
+                case 'view':
+                    viewProduct(id);
+                    break;
+                case 'edit':
+                    editProduct(id);
+                    break;
+                case 'price':
+                    openPriceModal(id, parseFloat(el.dataset.cost), parseFloat(el.dataset.price));
+                    break;
+                case 'barcode':
+                    openBarcodeModal(id);
+                    break;
+                case 'delete':
+                    deleteProduct(id);
+                    break;
+            }
+        }
+
+        function handleBarcodeListClick(e) {
+            const el = e.target.closest('[data-action]');
+            if (!el) return;
+            const id = parseInt(el.dataset.id, 10);
+            if (el.dataset.action === 'edit-barcode') {
+                const barcode = currentBarcodes.find(b => b.id === id);
+                if (barcode) editBarcode(id, barcode.barcode_number, barcode.status);
+            } else if (el.dataset.action === 'remove-barcode') {
+                removeBarcode(id);
+            }
+        }
 
         function getStockBadge(quantity, reorderLevel) {
             if (quantity <= 0) {
@@ -349,7 +393,7 @@
                 <tr>
                     <td>${prod.id}</td>
                     <td>
-                        <a href="#" class="text-decoration-none" onclick="viewProduct(${prod.id}); return false;">
+                        <a href="#" class="text-decoration-none" data-action="view" data-id="${prod.id}">
                             ${prod.name}
                         </a>
                     </td>
@@ -360,20 +404,20 @@
                     <td>${getStatusBadge(prod.status)}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-info" onclick="viewProduct(${prod.id})" title="View">
+                            <button type="button" class="btn btn-sm btn-info" data-action="view" data-id="${prod.id}" title="View">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            ${canManage() ? `
-                            <button class="btn btn-sm btn-warning" onclick="editProduct(${prod.id})" title="Edit">
+                            ${canManageCatalog() ? `
+                            <button type="button" class="btn btn-sm btn-warning" data-action="edit" data-id="${prod.id}" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-sm btn-secondary" onclick="openPriceModal(${prod.id}, ${prod.price})" title="Update Price">
+                            <button type="button" class="btn btn-sm btn-secondary" data-action="price" data-id="${prod.id}" data-cost="${prod.cost_price}" data-price="${prod.price}" title="Update Price">
                                 <i class="fas fa-tag"></i>
                             </button>
-                            <button class="btn btn-sm btn-secondary" onclick="openBarcodeModal(${prod.id}, '${prod.name.replace(/'/g, "\\'")}')" title="Barcodes">
+                            <button type="button" class="btn btn-sm btn-secondary" data-action="barcode" data-id="${prod.id}" title="Barcodes">
                                 <i class="fas fa-barcode"></i>
                             </button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteProduct(${prod.id})" title="Delete">
+                            <button type="button" class="btn btn-sm btn-danger" data-action="delete" data-id="${prod.id}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                             ` : ''}
@@ -460,7 +504,10 @@
         }
 
         async function deleteProduct(id) {
-            if (!confirm('Are you sure you want to delete this product?')) return;
+            if (!await confirmAction({
+                title: 'Delete Product',
+                message: 'Are you sure you want to delete this product? This action cannot be undone.',
+            })) return;
             try {
                 const response = await api.deleteProduct(id);
                 if (response.success) {
@@ -478,8 +525,8 @@
             detailProductId = id;
             const modal = new bootstrap.Modal(document.getElementById('detailModal'));
             document.getElementById('detailBody').innerHTML = '<div class="text-center text-muted py-4">Loading...</div>';
-            document.getElementById('manageBarcodesBtn').style.display = canManage() ? 'inline-block' : 'none';
-            document.getElementById('detailEditBtn').style.display = canManage() ? 'inline-block' : 'none';
+            document.getElementById('manageBarcodesBtn').style.display = canManageCatalog() ? 'inline-block' : 'none';
+            document.getElementById('detailEditBtn').style.display = canManageCatalog() ? 'inline-block' : 'none';
             modal.show();
 
             try {
@@ -556,6 +603,7 @@
             try {
                 const response = await api.getProductBarcodes(barcodeProductId);
                 const barcodes = response.success ? response.data : [];
+                currentBarcodes = barcodes;
 
                 document.getElementById('barcodeList').innerHTML = barcodes.length ? `
                     <ul class="list-group">
@@ -564,8 +612,8 @@
                                 <span><i class="fas fa-barcode me-2 text-muted"></i>${b.barcode_number}</span>
                                 <div class="d-flex align-items-center gap-2">
                                     ${getStatusBadge(b.status)}
-                                    <button class="btn btn-sm btn-outline-warning" onclick="editBarcode(${b.id}, '${b.barcode_number.replace(/'/g, "\\'")}', '${b.status}')" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="removeBarcode(${b.id})" title="Remove"><i class="fas fa-trash"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-action="edit-barcode" data-id="${b.id}" title="Edit"><i class="fas fa-edit"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-action="remove-barcode" data-id="${b.id}" title="Remove"><i class="fas fa-trash"></i></button>
                                 </div>
                             </li>
                         `).join('')}
@@ -617,7 +665,11 @@
         }
 
         async function removeBarcode(id) {
-            if (!confirm('Remove this barcode?')) return;
+            if (!await confirmAction({
+                title: 'Remove Barcode',
+                message: 'Remove this barcode from the product?',
+                confirmLabel: 'Remove',
+            })) return;
             try {
                 await api.deleteBarcode(id);
                 showSuccess('Barcode removed');
@@ -625,25 +677,36 @@
             } catch (e) { showError(e.message); }
         }
 
-        function openPriceModal(id, price) {
+        function openPriceModal(id, costPrice, sellingPrice) {
             document.getElementById('priceProductId').value = id;
-            document.getElementById('newSellingPrice').value = price;
+            document.getElementById('newCostPrice').value = costPrice;
+            document.getElementById('newSellingPrice').value = sellingPrice;
             new bootstrap.Modal(document.getElementById('priceModal')).show();
         }
 
         async function savePrice(e) {
             e.preventDefault();
             const id = document.getElementById('priceProductId').value;
-            const selling_price = parseFloat(document.getElementById('newSellingPrice').value);
+            const costInput = document.getElementById('newCostPrice').value;
+            const sellInput = document.getElementById('newSellingPrice').value;
+            const payload = {};
+            if (costInput !== '') payload.cost_price = parseFloat(costInput);
+            if (sellInput !== '') payload.selling_price = parseFloat(sellInput);
+            if (payload.cost_price === undefined && payload.selling_price === undefined) {
+                showError('Enter at least one price to update');
+                return;
+            }
             try {
-                await api.updateProductPrice(id, selling_price);
+                await api.updateProductPrice(id, payload);
                 showSuccess('Price updated');
                 bootstrap.Modal.getInstance(document.getElementById('priceModal')).hide();
                 loadData();
             } catch (err) { showError(err.message); }
         }
 
-        window.addEventListener('DOMContentLoaded', loadData);
+        bindEvents();
+        await loadData();
+    }, {});
     </script>
 </body>
 </html>

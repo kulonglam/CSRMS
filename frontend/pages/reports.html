@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports - CSRMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css">
+    <script src="../js/layout.js"></script>
     <style>
         .trend-bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding-top: 10px; }
         .trend-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; min-width: 0; }
@@ -20,18 +19,7 @@
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
-                    <small class="ms-2" id="branchName"></small>
-                </span>
-                <button class="btn btn-outline-light btn-sm no-print" onclick="handleLogout()">Logout</button>
-            </div>
-        </div>
-    </nav>
+        <div id="appNavbar"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -42,14 +30,14 @@
             <div class="col-md-10 p-4">
                 <div class="dashboard-header d-flex justify-content-between align-items-center">
                     <div>
-                        <h1><i class="fas fa-file-chart-line me-2"></i>Reports</h1>
+                        <h1><i class="fas fa-chart-line me-2"></i>Reports</h1>
                         <p>Generate and view business reports</p>
                     </div>
                     <div class="d-flex gap-2 no-print">
-                        <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
                             <i class="fas fa-print me-1"></i>Print
                         </button>
-                        <button class="btn btn-outline-primary btn-sm" onclick="exportReportPdf()">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="exportPdfBtn">
                             <i class="fas fa-file-pdf me-1"></i>Export PDF
                         </button>
                     </div>
@@ -64,16 +52,9 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/export.js"></script>
-    <script src="../js/nav.js"></script>
-
+    
     <script>
-        requireAuth();
+        CSRMSLayout.boot(async () => {requireAuth();
 
         const user = auth.getCurrentUser();
 
@@ -82,7 +63,7 @@
             setTimeout(() => auth.redirectToDashboard(), 1500);
         }
 
-        initPage('reports');
+        initPage('reports', { logoutClass: 'no-print' });
 
         let branches = [];
         let activeReport = null;
@@ -90,21 +71,35 @@
         const REPORT_TABS = isDirector() ? [
             { id: 'company', label: 'Company Performance', icon: 'fa-building' },
             { id: 'daily', label: 'Daily Sales', icon: 'fa-calendar-day' },
-            { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-area' },
+            { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-line' },
             { id: 'inventory', label: 'Inventory', icon: 'fa-warehouse' },
             { id: 'procurement', label: 'Procurement', icon: 'fa-truck' },
         ] : [
             { id: 'daily', label: 'Daily Sales', icon: 'fa-calendar-day' },
-            { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-area' },
+            { id: 'trends', label: 'Sales Trends', icon: 'fa-chart-line' },
             { id: 'inventory', label: 'Inventory', icon: 'fa-warehouse' },
             { id: 'procurement', label: 'Procurement', icon: 'fa-truck' },
-            { id: 'cashier', label: 'Cashier Balancing', icon: 'fa-cash-register' },
+            { id: 'cashier', label: 'Cashier Balancing', icon: 'fa-calculator' },
         ];
+
+        function bindEvents() {
+            document.getElementById('exportPdfBtn')?.addEventListener('click', exportReportPdf);
+            document.getElementById('reportTabs').addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-report-id]');
+                if (!btn) return;
+                switchReport(btn.dataset.reportId, btn);
+            });
+            document.getElementById('reportContent').addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action="generate"]');
+                if (!btn) return;
+                loadReport(btn.dataset.reportId);
+            });
+        }
 
         function renderTabs() {
             document.getElementById('reportTabs').innerHTML = REPORT_TABS.map((tab, i) => `
                 <li class="nav-item">
-                    <button class="nav-link${i === 0 ? ' active' : ''}" onclick="switchReport('${tab.id}', this)">
+                    <button type="button" class="nav-link${i === 0 ? ' active' : ''}" data-report-id="${tab.id}">
                         <i class="fas ${tab.icon} me-1"></i>${tab.label}
                     </button>
                 </li>
@@ -150,7 +145,7 @@
                         <div class="row mb-3 no-print">
                             <div class="col-md-3"><input type="date" class="form-control" id="filterFrom" value="${monthAgo()}"></div>
                             <div class="col-md-3"><input type="date" class="form-control" id="filterTo" value="${today()}"></div>
-                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('company')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                            <div class="col-md-3"><button type="button" class="btn btn-primary" data-action="generate" data-report-id="company"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
                         <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
                     break;
@@ -159,7 +154,7 @@
                         <div class="row mb-3 no-print">
                             <div class="col-md-3"><input type="date" class="form-control" id="filterDate" value="${today()}"></div>
                             ${isDirector() ? branchFilterHtml() : ''}
-                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('daily')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                            <div class="col-md-3"><button type="button" class="btn btn-primary" data-action="generate" data-report-id="daily"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
                         <div id="reportBody">${isDirector() ? '<div class="text-center text-muted py-4">Select a branch and click Generate</div>' : '<div class="text-center text-muted py-4">Loading...</div>'}</div>`;
                     break;
@@ -176,7 +171,7 @@
                             <div class="col-md-2"><input type="date" class="form-control" id="filterFrom" value="${monthAgo()}"></div>
                             <div class="col-md-2"><input type="date" class="form-control" id="filterTo" value="${today()}"></div>
                             ${branchFilterHtml()}
-                            <div class="col-md-2"><button class="btn btn-primary" onclick="loadReport('trends')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                            <div class="col-md-2"><button type="button" class="btn btn-primary" data-action="generate" data-report-id="trends"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
                         <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
                     break;
@@ -184,7 +179,7 @@
                     filters = `
                         <div class="row mb-3 no-print">
                             ${branchFilterHtml()}
-                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('inventory')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                            <div class="col-md-3"><button type="button" class="btn btn-primary" data-action="generate" data-report-id="inventory"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
                         <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
                     break;
@@ -194,7 +189,7 @@
                             <div class="col-md-2"><input type="date" class="form-control" id="filterFrom" value="${monthAgo()}"></div>
                             <div class="col-md-2"><input type="date" class="form-control" id="filterTo" value="${today()}"></div>
                             ${branchFilterHtml()}
-                            <div class="col-md-2"><button class="btn btn-primary" onclick="loadReport('procurement')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                            <div class="col-md-2"><button type="button" class="btn btn-primary" data-action="generate" data-report-id="procurement"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
                         <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
                     break;
@@ -202,7 +197,7 @@
                     filters = `
                         <div class="row mb-3 no-print">
                             <div class="col-md-3"><input type="date" class="form-control" id="filterDate" value="${today()}"></div>
-                            <div class="col-md-3"><button class="btn btn-primary" onclick="loadReport('cashier')"><i class="fas fa-sync me-1"></i>Generate</button></div>
+                            <div class="col-md-3"><button type="button" class="btn btn-primary" data-action="generate" data-report-id="cashier"><i class="fas fa-sync me-1"></i>Generate</button></div>
                         </div>
                         <div id="reportBody"><div class="text-center text-muted py-4">Loading...</div></div>`;
                     break;
@@ -566,13 +561,13 @@
             exportElementToPdf('reportBody', `csrms-${names[activeReport] || 'report'}-${today()}.pdf`);
         }
 
+        bindEvents();
         renderTabs();
-        window.addEventListener('DOMContentLoaded', async () => {
-            await loadBranches();
-            activeReport = REPORT_TABS[0].id;
-            renderReportFilters(activeReport);
-            loadReport(activeReport);
-        });
+        await loadBranches();
+        activeReport = REPORT_TABS[0].id;
+        renderReportFilters(activeReport);
+        loadReport(activeReport);
+    }, {"extra":["https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js","../js/export.js"]});
     </script>
 </body>
 </html>

@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS cashier_balancing (
   submitted_amount NUMERIC(12, 2) NOT NULL,
   variance        NUMERIC(12, 2) GENERATED ALWAYS AS (submitted_amount - expected_amount) STORED,
   notes           TEXT,
-  status          VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'flagged')),
+  status          VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'flagged', 'rejected')),
   agent_submitted_at TIMESTAMPTZ,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (sales_agent_id, balance_date)

@@ -3,131 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSRMS - Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Sign in — CSRMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-    <style>
-        .login-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .brand-text {
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-            margin-bottom: 10px;
-        }
-    </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-box">
-            <div class="text-center mb-4">
-                <div class="brand-text">🏪 CSRMS</div>
-                <div class="subtitle">Crown Stores Retail Management System</div>
-            </div>
-
-            <form id="loginForm" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input 
-                        type="text" 
-                        class="form-control" 
-                        id="username" 
-                        placeholder="Enter your username"
-                        required
-                    >
+    <div class="auth-page">
+        <main class="login-container">
+            <div class="login-box">
+                <div class="text-center mb-2">
+                    <div class="brand-mark" aria-hidden="true"><i class="fas fa-store"></i></div>
+                    <div class="brand-text">Welcome back</div>
+                    <div class="subtitle">Sign in to Crown Stores Retail Management System</div>
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input 
-                        type="password" 
-                        class="form-control" 
-                        id="password" 
-                        placeholder="Enter your password"
-                        required
-                    >
+                <form id="loginForm" method="post" action="javascript:void(0)" novalidate>
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" class="form-control" id="username" placeholder="Enter your username" autocomplete="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="password-toggle-wrap">
+                            <input type="password" class="form-control" id="password" placeholder="Enter your password" autocomplete="current-password" required>
+                            <button type="button" class="password-toggle-btn" id="togglePassword" aria-label="Show password" aria-pressed="false">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-login" id="loginBtn">
+                        <span id="loginText">Sign in</span>
+                        <span id="loginSpinner" class="spinner-border spinner-border-sm ms-2" style="display:none;" aria-hidden="true"></span>
+                    </button>
+                </form>
+
+                <div class="text-center mt-3">
+                    <a href="pages/forgot-password.html" class="auth-link">Forgot password?</a>
                 </div>
-
-                <button type="submit" class="btn btn-login" id="loginBtn">
-                    <span id="loginText">Sign In</span>
-                    <span id="loginSpinner" class="spinner-border spinner-border-sm ms-2" style="display:none;"></span>
-                </button>
-            </form>
-
-            <div class="text-center mt-3">
-                <a href="pages/forgot-password.html" style="font-size: 13px;">Forgot password?</a>
             </div>
-
-            <div class="text-center mt-3 pt-3 border-top">
-                <p class="text-muted mb-1" style="font-size: 12px;">
-                    Forgot your password? Contact your administrator to reset it, or change it after signing in.
-                </p>
-                <p class="text-muted mb-0" style="font-size: 12px;">
-                    <strong>Demo Credentials:</strong><br>
-                    Username: <code>director</code> | Password: <code>Director@123</code>
-                </p>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
-
     <script>
-        // Check if already logged in
-        if (auth.isAuthenticated()) {
-            auth.redirectToDashboard();
-        }
+        if (window.auth?.isAuthenticated()) window.auth.redirectToDashboard();
 
         async function handleLogin(event) {
-            event.preventDefault();
+                event.preventDefault();
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                const loginBtn = document.getElementById('loginBtn');
+                const loginText = document.getElementById('loginText');
+                const loginSpinner = document.getElementById('loginSpinner');
 
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const loginBtn = document.getElementById('loginBtn');
-            const loginText = document.getElementById('loginText');
-            const loginSpinner = document.getElementById('loginSpinner');
-
-            // Validation
-            if (!username || !password) {
-                showError('Username and password are required');
-                return;
-            }
-
-            try {
-                // Disable button and show spinner
-                loginBtn.disabled = true;
-                loginText.style.display = 'none';
-                loginSpinner.style.display = 'inline-block';
-
-                // Call login API
-                const response = await auth.login(username, password);
-
-                if (response.success) {
-                    showSuccess('Login successful! Redirecting...');
-                    setTimeout(() => {
-                        auth.redirectToDashboard();
-                    }, 1500);
-                } else {
-                    showError(response.message || 'Login failed');
+                if (!username || !password) {
+                    showError('Username and password are required');
+                    return;
                 }
-            } catch (error) {
-                showError(error.message || 'Login failed. Please try again.');
-            } finally {
-                // Enable button and hide spinner
-                loginBtn.disabled = false;
-                loginText.style.display = 'inline';
-                loginSpinner.style.display = 'none';
-            }
-        }
 
-        // Allow login with Enter key
-        document.getElementById('password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+                try {
+                    loginBtn.disabled = true;
+                    loginText.style.display = 'none';
+                    loginSpinner.style.display = 'inline-block';
+                    const response = await window.auth.login(username, password);
+                    if (response.success) {
+                        showSuccess('Login successful! Redirecting…');
+                        setTimeout(() => window.auth.redirectToDashboard(), 1200);
+                    } else {
+                        showError(response.message || 'Login failed');
+                    }
+                } catch (error) {
+                    showError(error.message || 'Login failed. Please try again.');
+                } finally {
+                    loginBtn.disabled = false;
+                    loginText.style.display = 'inline';
+                    loginSpinner.style.display = 'none';
+                }
             }
+
+        window.handleLogin = handleLogin;
+        document.getElementById('loginForm').addEventListener('submit', handleLogin);
+
+        document.getElementById('togglePassword').addEventListener('click', () => {
+            const input = document.getElementById('password');
+            const btn = document.getElementById('togglePassword');
+            const icon = btn.querySelector('i');
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            icon.classList.toggle('fa-eye', !show);
+            icon.classList.toggle('fa-eye-slash', show);
+            btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+            btn.setAttribute('aria-pressed', show ? 'true' : 'false');
         });
     </script>
 </body>

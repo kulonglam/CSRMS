@@ -1,5 +1,5 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:5000/api';
+// API Configuration — same-origin when frontend is served by Express
+const API_BASE_URL = `${window.location.origin}/api`;
 
 class APIClient {
   constructor() {
@@ -121,8 +121,8 @@ class APIClient {
     return this.request('DELETE', `/products/${id}`);
   }
 
-  async updateProductPrice(id, selling_price) {
-    return this.request('PATCH', `/products/${id}/price`, { selling_price });
+  async updateProductPrice(id, prices) {
+    return this.request('PATCH', `/products/${id}/price`, prices);
   }
 
   async getProductBarcodes(productId) {
@@ -160,6 +160,10 @@ class APIClient {
 
   async resetUserPassword(id, new_password) {
     return this.request('POST', `/users/${id}/reset-password`, { new_password });
+  }
+
+  async deleteUser(id) {
+    return this.request('DELETE', `/users/${id}`);
   }
 
   // Branches
@@ -201,6 +205,14 @@ class APIClient {
 
   async createProcurement(data) {
     return this.request('POST', '/procurements', data);
+  }
+
+  async updateProcurement(id, data) {
+    return this.request('PUT', `/procurements/${id}`, data);
+  }
+
+  async deleteProcurement(id) {
+    return this.request('DELETE', `/procurements/${id}`);
   }
 
   // Sales
@@ -245,6 +257,10 @@ class APIClient {
 
   async approveCashierBalance(id) {
     return this.request('PATCH', `/cashier-balancing/${id}/approve`);
+  }
+
+  async rejectCashierBalance(id, reason) {
+    return this.request('PATCH', `/cashier-balancing/${id}/reject`, { reason });
   }
 
   // Receipts
@@ -319,6 +335,13 @@ class APIClient {
     const query = new URLSearchParams(params).toString();
     return this.request('GET', `/audit-logs${query ? '?' + query : ''}`);
   }
+
+  async downloadAuditLogsCsv(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const stamp = new Date().toISOString().slice(0, 10);
+    return this.downloadFile(`/audit-logs/export${query ? '?' + query : ''}`, `audit-logs-${stamp}.csv`);
+  }
 }
 
 const api = new APIClient();
+window.api = api;

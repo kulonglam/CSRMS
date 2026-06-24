@@ -4,29 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales - CSRMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css">
+    <script src="../js/layout.js"></script>
     <style>
         .pos-product-list { max-height: 320px; overflow-y: auto; }
         .cart-item { border-bottom: 1px solid #eee; padding: 8px 0; }
         .cart-item:last-child { border-bottom: none; }
         .receipt-box { font-family: monospace; font-size: 13px; }
+        @media print {
+            body * { visibility: hidden !important; }
+            #receiptModal, #receiptModal .modal-dialog, #receiptModal .modal-content,
+            #receiptModal .modal-body, #receiptModal .modal-body * { visibility: visible !important; }
+            #receiptModal { position: absolute; left: 0; top: 0; width: 100%; }
+            #receiptModal .modal-dialog { max-width: 100%; margin: 0; }
+            #receiptModal .modal-header, #receiptModal .modal-footer { display: none !important; }
+            #receiptModal .modal-content { border: none; box-shadow: none; }
+        }
     </style>
 </head>
 <body>
-    <nav class="navbar navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
-                    <small class="ms-2" id="branchName"></small>
-                </span>
-                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
-            </div>
-        </div>
-    </nav>
+        <div id="appNavbar"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -150,20 +147,20 @@
                     <div class="tab-pane fade" id="historyTab">
                         <div class="row mb-3">
                             <div class="col-md-3">
-                                <input type="date" class="form-control" id="fromDate" onchange="loadSales()">
+                                <input type="date" class="form-control" id="fromDate" onchange="salesPage=1; loadSales()">
                             </div>
                             <div class="col-md-3">
-                                <input type="date" class="form-control" id="toDate" onchange="loadSales()">
+                                <input type="date" class="form-control" id="toDate" onchange="salesPage=1; loadSales()">
                             </div>
                             <div class="col-md-3">
-                                <select class="form-control" id="statusFilter" onchange="loadSales()">
+                                <select class="form-control" id="statusFilter" onchange="salesPage=1; loadSales()">
                                     <option value="">All Statuses</option>
                                     <option value="completed">Completed</option>
                                     <option value="voided">Voided</option>
                                 </select>
                             </div>
                             <div class="col-md-3" id="branchFilterCol" style="display:none">
-                                <select class="form-control" id="branchFilter" onchange="loadSales()">
+                                <select class="form-control" id="branchFilter" onchange="salesPage=1; loadSales()">
                                     <option value="">All Branches</option>
                                 </select>
                             </div>
@@ -189,6 +186,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="salesPagination"></div>
                     </div>
                 </div>
             </div>
@@ -231,7 +229,7 @@
                     <button type="button" class="btn btn-outline-primary" onclick="downloadReceipt()">
                         <i class="fas fa-file-pdf me-1"></i>Download PDF
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="window.print()">
+                    <button type="button" class="btn btn-primary" id="printReceiptBtn">
                         <i class="fas fa-print me-1"></i>Print
                     </button>
                 </div>
@@ -239,14 +237,9 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/nav.js"></script>
-
+    
     <script>
-        requireAuth();
+        CSRMSLayout.boot(async () => {requireAuth();
 
         const user = auth.getCurrentUser();
         const userRole = user?.role;
@@ -285,16 +278,37 @@
         }
 
         function updateStats(sales) {
-            const today = new Date().toISOString().split('T')[0];
-            const todaySales = sales.filter(s => s.sale_date?.startsWith(today) && s.status === 'completed');
+            const today = getLocalDateString();
+            const todaySales = sales.filter(
+                s => normalizeDateKey(s.sale_date || s.created_at) === today && s.status === 'completed'
+            );
             const total = todaySales.reduce((sum, s) => sum + parseFloat(s.total_amount), 0);
-            const voided = sales.filter(s => s.status === 'voided').length;
+            const voided = sales.filter(
+                s => normalizeDateKey(s.sale_date || s.created_at) === today && s.status === 'voided'
+            ).length;
 
             document.getElementById('statTodaySales').textContent = formatCurrency(total);
             document.getElementById('statTransactions').textContent = todaySales.length;
             document.getElementById('statAvgSale').textContent = todaySales.length
                 ? formatCurrency(total / todaySales.length) : formatCurrency(0);
             document.getElementById('statVoided').textContent = voided;
+        }
+
+        async function loadTodayStats() {
+            const today = getLocalDateString();
+            const params = { from_date: today, to_date: today, limit: 500, page: 1 };
+            if (isAgent()) params.agent_id = user.id;
+            if (isDirector() && document.getElementById('branchFilter')?.value) {
+                params.branch_id = document.getElementById('branchFilter').value;
+            }
+            try {
+                const response = await api.getSales(params);
+                if (response.success) {
+                    updateStats(response.data || []);
+                }
+            } catch (error) {
+                console.error('Failed to load today stats', error);
+            }
         }
 
         async function loadProducts() {
@@ -475,6 +489,7 @@
                     showReceipt(response.data);
                     clearCart();
                     loadProducts();
+                    await loadTodayStats();
                     loadSales();
                 } else {
                     showError(response.message);
@@ -530,8 +545,16 @@
             }
         }
 
+        let salesPage = 1;
+        const SALES_PAGE_SIZE = 50;
+
+        function goSalesPage(page) {
+            salesPage = Math.max(1, page);
+            loadSales();
+        }
+
         async function loadSales() {
-            const params = {};
+            const params = { page: salesPage, limit: SALES_PAGE_SIZE };
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
             const status = document.getElementById('statusFilter').value;
@@ -550,12 +573,13 @@
                 const response = await api.getSales(params);
                 if (response.success) {
                     allSales = response.data || [];
-                    updateStats(allSales);
                     displaySales(allSales);
+                    renderListPagination('salesPagination', response.pagination, goSalesPage);
                 }
             } catch (error) {
                 showError('Failed to load sales');
             }
+            await loadTodayStats();
         }
 
         function displaySales(sales) {
@@ -652,7 +676,11 @@
 
         async function voidSale() {
             if (!selectedSaleId) return;
-            if (!confirm('Void this sale? Inventory will be restored.')) return;
+            if (!await confirmAction({
+                title: 'Void Sale',
+                message: 'Void this sale? Inventory will be restored.',
+                confirmLabel: 'Void Sale',
+            })) return;
 
             try {
                 const response = await api.voidSale(selectedSaleId);
@@ -668,15 +696,20 @@
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('fromDate').value = today;
-            document.getElementById('toDate').value = today;
+        const today = getLocalDateString();
+        document.getElementById('fromDate').value = today;
+        document.getElementById('toDate').value = today;
 
-            loadBranches();
-            loadProducts();
-            loadSales();
-        });
+        loadBranches();
+        loadProducts();
+        loadTodayStats();
+        loadSales();
+        document.getElementById('printReceiptBtn')?.addEventListener('click', () => window.print());
+        CSRMSLayout.expose(
+            loadSales, filterPosProducts, scanBarcode, clearCart, completeSale,
+            downloadReceipt, voidSale, addToCart, updateCartQty, viewSale, updateChange
+        );
+    }, {});
     </script>
 </body>
 </html>

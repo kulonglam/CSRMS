@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { query } = require('../config/database');
+const { auditLog } = require('../middleware/audit');
 const { isEmailConfigured, sendPasswordResetEmail } = require('../utils/email');
 
 const RESET_TOKEN_HOURS = 1;
@@ -13,7 +14,7 @@ function hashToken(token) {
 }
 
 function buildResetUrl(token) {
-  const base = (process.env.FRONTEND_URL || 'http://localhost:5500/frontend').replace(/\/$/, '');
+  const base = (process.env.FRONTEND_URL || 'http://localhost:5000').replace(/\/$/, '');
   return `${base}/pages/reset-password.html?token=${encodeURIComponent(token)}`;
 }
 
@@ -64,10 +65,13 @@ const login = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRE || '7d' }
     );
 
-    await query(
-      'INSERT INTO audit_logs (user_id, action, table_name) VALUES ($1, $2, $3)',
-      [user.id, 'LOGIN', 'users']
-    );
+    await auditLog({
+      userId: user.id,
+      action: 'LOGIN',
+      tableName: 'users',
+      recordId: user.id,
+      ipAddress: req.ip,
+    });
 
     res.status(200).json({
       success: true,
@@ -104,10 +108,13 @@ const logout = async (req, res) => {
       await query('DELETE FROM revoked_tokens WHERE expires_at <= NOW()');
     }
 
-    await query(
-      'INSERT INTO audit_logs (user_id, action, table_name) VALUES ($1, $2, $3)',
-      [req.user.id, 'LOGOUT', 'users']
-    );
+    await auditLog({
+      userId: req.user.id,
+      action: 'LOGOUT',
+      tableName: 'users',
+      recordId: req.user.id,
+      ipAddress: req.ip,
+    });
 
     res.status(200).json({
       success: true,
@@ -180,10 +187,13 @@ const changePassword = async (req, res) => {
       [newPasswordHash, userId]
     );
 
-    await query(
-      'INSERT INTO audit_logs (user_id, action, table_name) VALUES ($1, $2, $3)',
-      [userId, 'CHANGE_PASSWORD', 'users']
-    );
+    await auditLog({
+      userId,
+      action: 'CHANGE_PASSWORD',
+      tableName: 'users',
+      recordId: userId,
+      ipAddress: req.ip,
+    });
 
     res.status(200).json({
       success: true,
@@ -238,10 +248,13 @@ const forgotPassword = async (req, res) => {
       emailSent = await sendPasswordResetEmail(user.email, resetUrl);
     }
 
-    await query(
-      'INSERT INTO audit_logs (user_id, action, table_name) VALUES ($1, $2, $3)',
-      [user.id, 'FORGOT_PASSWORD', 'users']
-    );
+    await auditLog({
+      userId: user.id,
+      action: 'FORGOT_PASSWORD',
+      tableName: 'users',
+      recordId: user.id,
+      ipAddress: req.ip,
+    });
 
     const response = { success: true, message: genericMessage };
     if (!emailSent && process.env.NODE_ENV !== 'production') {
@@ -289,10 +302,13 @@ const resetPassword = async (req, res) => {
     ]);
     await query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [resetRow.id]);
 
-    await query(
-      'INSERT INTO audit_logs (user_id, action, table_name) VALUES ($1, $2, $3)',
-      [resetRow.user_id, 'RESET_PASSWORD', 'users']
-    );
+    await auditLog({
+      userId: resetRow.user_id,
+      action: 'RESET_PASSWORD',
+      tableName: 'users',
+      recordId: resetRow.user_id,
+      ipAddress: req.ip,
+    });
 
     res.status(200).json({ success: true, message: 'Password reset successfully. You can now sign in.' });
   } catch (error) {

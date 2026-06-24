@@ -1,10 +1,12 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { globalLimiter, authLimiter } = require('./middleware/rateLimit');
 
 // Routes
 const authRoutes             = require('./routes/auth');
@@ -24,23 +26,36 @@ const dashboardRoutes        = require('./routes/dashboard');
 const receiptRoutes          = require('./routes/receipts');
 
 const app = express();
+const FRONTEND_DIR = path.join(__dirname, '../frontend');
+
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // ── Security & Parsing ──────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      // Allow inline onclick handlers used across legacy page scripts.
+      scriptSrcAttr: ["'unsafe-inline'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
 
-// CORS Configuration - Allow multiple origins in development
 const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(o => o.trim());
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      return callback(null, true);
-    }
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    // In production, check against allowed list
+    if (!origin) return callback(null, true);
+    if (process.env.NODE_ENV === 'development') return callback(null, true);
     if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
       return callback(null, true);
     }
@@ -50,10 +65,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
 }));
-app.use(express.json());
+
+app.use(globalLimiter);
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 
-// ── Logging ─────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
@@ -64,14 +80,14 @@ app.get('/health', (req, res) => {
     success: true,
     message: 'CSRMS API is running.',
     timestamp: new Date().toISOString(),
-    version: '1.0.0',
+    version: process.env.APP_VERSION || '1.0.0',
   });
 });
 
 // ── API Routes ──────────────────────────────────────────────────
 const API = '/api';
 
-app.use(`${API}/auth`,              authRoutes);
+app.use(`${API}/auth`, authLimiter, authRoutes);
 app.use(`${API}/dashboard`,         dashboardRoutes);
 app.use(`${API}/branches`,          branchRoutes);
 app.use(`${API}/users`,             userRoutes);
@@ -87,16 +103,25 @@ app.use(`${API}/reports`,           reportsRoutes);
 app.use(`${API}/notifications`,     notificationsRoutes);
 app.use(`${API}/audit-logs`,        auditLogRoutes);
 
+// ── Static Frontend (single-origin deployment) ───────────────────
+app.use(express.static(FRONTEND_DIR, { index: false }));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+});
+
 // ── Error Handling ──────────────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
 
 // ── Start Server ────────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 CSRMS API running on port ${PORT}`);
-  console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   Health check: http://localhost:${PORT}/health\n`);
-});
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`\n🚀 CSRMS running on http://localhost:${PORT}`);
+    console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   API         : http://localhost:${PORT}/api`);
+    console.log(`   Health      : http://localhost:${PORT}/health\n`);
+  });
+}
 
 module.exports = app;

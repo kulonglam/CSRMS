@@ -244,6 +244,52 @@ const approveBalance = async (req, res, next) => {
   }
 };
 
+// PATCH /api/cashier-balancing/:id/reject
+const rejectBalance = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    if (!reason?.trim()) {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required.' });
+    }
+
+    const existing = await query(
+      'SELECT * FROM cashier_balancing WHERE id = $1 AND branch_id = $2',
+      [req.params.id, req.user.branch_id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Balancing record not found.' });
+    }
+    if (existing.rows[0].status === 'approved') {
+      return res.status(400).json({ success: false, message: 'Approved balances cannot be rejected.' });
+    }
+
+    const notes = existing.rows[0].notes
+      ? `${existing.rows[0].notes}\n[Rejected] ${reason.trim()}`
+      : `[Rejected] ${reason.trim()}`;
+
+    const result = await query(
+      `UPDATE cashier_balancing
+       SET status = 'rejected', manager_id = $3, notes = $4
+       WHERE id = $1 AND branch_id = $2
+       RETURNING *`,
+      [req.params.id, req.user.branch_id, req.user.id, notes]
+    );
+
+    await auditLog({
+      userId: req.user.id,
+      action: 'REJECT_BALANCE',
+      tableName: 'cashier_balancing',
+      recordId: +req.params.id,
+      newValues: { reason: reason.trim(), balance: result.rows[0] },
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'Balance rejected. Agent may resubmit.', data: result.rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getBalances,
   getAgentDailySummary,
@@ -251,4 +297,5 @@ module.exports = {
   agentSubmitBalance,
   createBalance,
   approveBalance,
+  rejectBalance,
 };

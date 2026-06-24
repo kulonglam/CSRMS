@@ -1,6 +1,7 @@
 const { query, getClient } = require('../config/database');
 const { auditLog } = require('../middleware/audit');
 const { createLowStockNotification } = require('../utils/notifications');
+const { parsePagination, paginationMeta } = require('../utils/helpers');
 const {
   getEffectiveBranchId,
   assertRecordBranch,
@@ -35,9 +36,24 @@ const getInventory = async (req, res, next) => {
     if (low_stock === 'true')     sql += ` AND i.quantity_available > 0 AND i.quantity_available <= p.reorder_level`;
     if (out_of_stock === 'true')  sql += ` AND i.quantity_available = 0`;
 
-    sql += ' ORDER BY p.name';
-    const result = await query(sql, params);
-    res.json({ success: true, data: result.rows });
+    const fromJoin = ` FROM inventory i
+               JOIN products p ON p.id = i.product_id
+               JOIN categories c ON c.id = p.category_id
+               JOIN branches b ON b.id = i.branch_id
+               WHERE 1=1${sql.slice(sql.indexOf('WHERE 1=1') + 9)}`;
+
+    const countResult = await query(`SELECT COUNT(*)::int AS total${fromJoin}`, params);
+    const total = countResult.rows[0].total;
+    const { page, limit, offset } = parsePagination(req.query);
+
+    sql += ` ORDER BY p.name LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    const result = await query(sql, [...params, limit, offset]);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      pagination: paginationMeta(page, limit, total),
+    });
   } catch (err) {
     next(err);
   }

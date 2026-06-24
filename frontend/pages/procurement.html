@@ -4,23 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procurement - CSRMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css">
+    <script src="../js/layout.js"></script>
 </head>
 <body>
-    <nav class="navbar navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
-                    <small class="ms-2" id="branchName"></small>
-                </span>
-                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
-            </div>
-        </div>
-    </nav>
+        <div id="appNavbar"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -39,10 +27,10 @@
                 <div class="row mb-3">
                     <div class="col-md-4"><input type="text" class="form-control" id="searchInput" placeholder="Search supplier or product..." onkeyup="filterTable()"></div>
                     <div class="col-md-3" id="branchFilterCol" style="display:none">
-                        <select class="form-control" id="branchFilter" onchange="loadProcurements()"><option value="">All Branches</option></select>
+                        <select class="form-control" id="branchFilter" onchange="procurementPage=1; loadProcurements()"><option value="">All Branches</option></select>
                     </div>
-                    <div class="col-md-2"><input type="date" class="form-control" id="fromDate" onchange="loadProcurements()"></div>
-                    <div class="col-md-2"><input type="date" class="form-control" id="toDate" onchange="loadProcurements()"></div>
+                    <div class="col-md-2"><input type="date" class="form-control" id="fromDate" onchange="procurementPage=1; loadProcurements()"></div>
+                    <div class="col-md-2"><input type="date" class="form-control" id="toDate" onchange="procurementPage=1; loadProcurements()"></div>
                 </div>
 
                 <div class="table-container">
@@ -58,11 +46,13 @@
                                 <th>Cost</th>
                                 <th>Total</th>
                                 <th>Recorded By</th>
+                                <th data-manager-only>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="procurementsTable"><tr><td colspan="9" class="text-center text-muted py-4">Loading...</td></tr></tbody>
+                        <tbody id="procurementsTable"><tr><td colspan="10" class="text-center text-muted py-4">Loading...</td></tr></tbody>
                     </table>
                 </div>
+                <div id="procurementsPagination"></div>
             </div>
         </div>
     </div>
@@ -70,7 +60,7 @@
     <div class="modal fade" id="procurementModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title">Record Procurement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header"><h5 class="modal-title" id="procurementModalTitle">Record Procurement</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <form id="procurementForm" onsubmit="saveProcurement(event)">
                     <div class="modal-body">
                         <div class="mb-3">
@@ -109,13 +99,9 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/nav.js"></script>
+    
     <script>
-        requireAuth();
+        CSRMSLayout.boot(async () => {requireAuth();
         if (!auth.hasRole(['director', 'manager'])) {
             showError('Unauthorized'); setTimeout(() => auth.redirectToDashboard(), 1500);
         }
@@ -124,6 +110,14 @@
 
         let allProcurements = [];
         let allProducts = [];
+        let procurementPage = 1;
+        let editingProcurementId = null;
+        const PROCUREMENT_PAGE_SIZE = 50;
+
+        function goProcurementPage(page) {
+            procurementPage = Math.max(1, page);
+            loadProcurements();
+        }
 
         async function loadProducts() {
             const res = await api.getProducts({ status: 'active' });
@@ -150,18 +144,23 @@
         }
 
         async function loadProcurements() {
-            const params = {};
+            const params = { page: procurementPage, limit: PROCUREMENT_PAGE_SIZE };
             if (document.getElementById('fromDate').value) params.from_date = document.getElementById('fromDate').value;
             if (document.getElementById('toDate').value) params.to_date = document.getElementById('toDate').value;
             if (isDirector() && document.getElementById('branchFilter').value) params.branch_id = document.getElementById('branchFilter').value;
             try {
                 const res = await api.getProcurements(params);
-                if (res.success) { allProcurements = res.data || []; displayProcurements(allProcurements); }
+                if (res.success) {
+                    allProcurements = res.data || [];
+                    displayProcurements(allProcurements);
+                    renderListPagination('procurementsPagination', res.pagination, goProcurementPage);
+                }
             } catch (e) { showError('Failed to load procurements'); }
         }
 
         function displayProcurements(items) {
             const showBranch = isDirector();
+            const managerActions = canManageCatalog();
             document.getElementById('procurementsTable').innerHTML = items.map(p => {
                 const total = p.quantity_received * parseFloat(p.cost_price);
                 return `<tr>
@@ -174,8 +173,19 @@
                     <td>${formatCurrency(p.cost_price)}</td>
                     <td>${formatCurrency(total)}</td>
                     <td>${p.recorded_by_name}</td>
+                    ${managerActions ? `<td>
+                        <div class="action-buttons">
+                            <button type="button" class="btn btn-sm btn-warning btn-edit-proc" data-id="${p.id}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger btn-delete-proc" data-id="${p.id}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>` : ''}
                 </tr>`;
-            }).join('') || `<tr><td colspan="${showBranch ? 9 : 8}" class="text-center text-muted">No procurements found</td></tr>`;
+            }).join('') || `<tr><td colspan="${showBranch ? (managerActions ? 10 : 9) : (managerActions ? 9 : 8)}" class="text-center text-muted">No procurements found</td></tr>`;
+            applyRoleRestrictions();
         }
 
         function filterTable() {
@@ -186,14 +196,48 @@
         }
 
         function resetForm() {
+            editingProcurementId = null;
             document.getElementById('procurementForm').reset();
+            document.getElementById('procProduct').disabled = false;
+            document.getElementById('procurementModalTitle').textContent = 'Record Procurement';
             document.getElementById('procDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        function editProcurement(id) {
+            const proc = allProcurements.find(p => p.id === id);
+            if (!proc) return;
+            editingProcurementId = id;
+            document.getElementById('procurementModalTitle').textContent = 'Edit Procurement';
+            document.getElementById('procProduct').value = proc.product_id;
+            document.getElementById('procProduct').disabled = true;
+            document.getElementById('procSupplier').value = proc.supplier_name;
+            document.getElementById('procQuantity').value = proc.quantity_received;
+            document.getElementById('procCostPrice').value = proc.cost_price;
+            document.getElementById('procDate').value = (proc.date_received || '').slice(0, 10);
+            document.getElementById('procNotes').value = proc.notes || '';
+            new bootstrap.Modal(document.getElementById('procurementModal')).show();
+        }
+
+        async function deleteProcurement(id) {
+            const proc = allProcurements.find(p => p.id === id);
+            if (!proc) return;
+            if (!await confirmAction({
+                title: 'Delete Procurement',
+                message: `Delete procurement #${id} for ${proc.product_name}? Stock will be reduced by ${proc.quantity_received} units.`,
+                confirmLabel: 'Delete',
+            })) return;
+            try {
+                const res = await api.deleteProcurement(id);
+                if (res.success) {
+                    showSuccess(res.message || 'Procurement deleted');
+                    loadProcurements();
+                }
+            } catch (err) { showError(err.message); }
         }
 
         async function saveProcurement(e) {
             e.preventDefault();
             const data = {
-                product_id: parseInt(document.getElementById('procProduct').value),
                 supplier_name: document.getElementById('procSupplier').value.trim(),
                 quantity_received: parseInt(document.getElementById('procQuantity').value),
                 cost_price: parseFloat(document.getElementById('procCostPrice').value),
@@ -201,17 +245,33 @@
                 notes: document.getElementById('procNotes').value.trim() || null,
             };
             try {
-                const res = await api.createProcurement(data);
+                let res;
+                if (editingProcurementId) {
+                    res = await api.updateProcurement(editingProcurementId, data);
+                } else {
+                    data.product_id = parseInt(document.getElementById('procProduct').value);
+                    res = await api.createProcurement(data);
+                }
                 if (res.success) {
-                    showSuccess('Procurement recorded and inventory updated');
+                    showSuccess(res.message || (editingProcurementId ? 'Procurement updated' : 'Procurement recorded'));
                     bootstrap.Modal.getInstance(document.getElementById('procurementModal')).hide();
+                    resetForm();
                     loadProcurements();
                 }
             } catch (err) { showError(err.message); }
         }
 
+        document.getElementById('procurementsTable').addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.btn-edit-proc');
+            const deleteBtn = e.target.closest('.btn-delete-proc');
+            if (editBtn) editProcurement(Number(editBtn.dataset.id));
+            if (deleteBtn) deleteProcurement(Number(deleteBtn.dataset.id));
+        });
+
         document.getElementById('procDate').value = new Date().toISOString().split('T')[0];
         loadBranches(); loadProducts(); loadProcurements();
+        CSRMSLayout.expose(filterTable, resetForm, saveProcurement, loadProcurements);
+    }, {});
     </script>
 </body>
 </html>

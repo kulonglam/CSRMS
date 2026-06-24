@@ -10,4 +10,24 @@ const generateReceiptNumber = () => {
   return `RCP-${date}-${suffix}`;
 };
 
-module.exports = { generateReceiptNumber };
+/**
+ * Parse page/limit from query string for list endpoints.
+ */
+function parsePagination(query, { defaultLimit = 50, maxLimit = 200 } = {}) {
+  const page = Math.max(1, parseInt(String(query.page || '1'), 10) || 1);
+  let limit = parseInt(String(query.limit ?? defaultLimit), 10);
+  if (Number.isNaN(limit) || limit < 1) limit = defaultLimit;
+  limit = Math.min(maxLimit, limit);
+  return { page, limit, offset: (page - 1) * limit };
+}
+
+function paginationMeta(page, limit, total) {
+  return {
+    page,
+    limit,
+    total,
+    total_pages: Math.max(1, Math.ceil(total / limit)),
+  };
+}
+
+module.exports = { generateReceiptNumber, parsePagination, paginationMeta };

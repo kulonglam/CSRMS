@@ -4,23 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory - CSRMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css">
+    <script src="../js/layout.js"></script>
 </head>
 <body>
-    <nav class="navbar navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">🏪 CSRMS</a>
-            <div class="d-flex align-items-center gap-2">
-                <span class="text-light me-3">
-                    <i class="fas fa-user-circle me-2"></i><span id="navUserName">User</span>
-                    <small class="ms-2" id="branchName"></small>
-                </span>
-                <button class="btn btn-outline-light btn-sm" onclick="handleLogout()">Logout</button>
-            </div>
-        </div>
-    </nav>
+        <div id="appNavbar"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -68,7 +56,7 @@
                         <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#stockTab">Stock Levels</button>
                     </li>
                     <li class="nav-item" id="adjustmentsTabItem">
-                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#adjustmentsTab" onclick="loadAdjustments()">Adjustment History</button>
+                        <button type="button" class="nav-link" data-bs-toggle="tab" data-bs-target="#adjustmentsTab" id="adjustmentsTabBtn">Adjustment History</button>
                     </li>
                 </ul>
 
@@ -77,15 +65,15 @@
                     <div class="tab-pane fade show active" id="stockTab">
                         <div class="row mb-3">
                             <div class="col-md-4">
-                                <input type="text" class="form-control" id="searchInput" placeholder="Search products..." onkeyup="debouncedLoad()">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search products...">
                             </div>
                             <div class="col-md-3" id="branchFilterCol" style="display:none">
-                                <select class="form-control" id="branchFilter" onchange="loadInventory()">
+                                <select class="form-control" id="branchFilter">
                                     <option value="">All Branches</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <select class="form-control" id="stockFilter" onchange="loadInventory()">
+                                <select class="form-control" id="stockFilter">
                                     <option value="">All Stock Levels</option>
                                     <option value="low">Low Stock</option>
                                     <option value="out">Out of Stock</option>
@@ -112,6 +100,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="inventoryPagination"></div>
                     </div>
 
                     <!-- Adjustments -->
@@ -147,7 +136,7 @@
                     <h5 class="modal-title"><i class="fas fa-sliders-h me-2"></i>Adjust Stock</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form id="adjustForm" onsubmit="submitAdjustment(event)">
+                <form id="adjustForm">
                     <div class="modal-body">
                         <div class="alert alert-light border mb-3">
                             <strong id="adjustProductName"></strong>
@@ -161,7 +150,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Reason</label>
-                            <select class="form-control" id="adjustReasonSelect" onchange="toggleCustomReason()">
+                            <select class="form-control" id="adjustReasonSelect">
                                 <option value="Stock received">Stock received</option>
                                 <option value="Damaged goods">Damaged goods</option>
                                 <option value="Inventory count correction">Inventory count correction</option>
@@ -183,14 +172,9 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../js/api.js"></script>
-    <script src="../js/auth.js"></script>
-    <script src="../js/utils.js"></script>
-    <script src="../js/nav.js"></script>
-
+    
     <script>
-        requireAuth();
+        CSRMSLayout.boot(async () => {requireAuth();
 
         const user = auth.getCurrentUser();
         const userRole = user?.role;
@@ -207,6 +191,40 @@
         }
 
         let allInventory = [];
+        let inventoryPage = 1;
+        const INVENTORY_PAGE_SIZE = 50;
+
+        function bindEvents() {
+            document.getElementById('inventoryTable').addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action="adjust"]');
+                if (!btn) return;
+                const productId = parseInt(btn.dataset.productId, 10);
+                const item = allInventory.find(i => i.product_id === productId);
+                if (item) {
+                    openAdjustModal(item.product_id, item.product_name, item.quantity_available);
+                }
+            });
+            document.getElementById('adjustForm').addEventListener('submit', submitAdjustment);
+            document.getElementById('adjustReasonSelect').addEventListener('change', toggleCustomReason);
+            document.getElementById('searchInput').addEventListener('keyup', () => {
+                inventoryPage = 1;
+                debouncedLoad();
+            });
+            document.getElementById('branchFilter').addEventListener('change', () => {
+                inventoryPage = 1;
+                loadInventory();
+            });
+            document.getElementById('stockFilter').addEventListener('change', () => {
+                inventoryPage = 1;
+                loadInventory();
+            });
+            document.getElementById('adjustmentsTabBtn')?.addEventListener('click', loadAdjustments);
+        }
+
+        function goInventoryPage(page) {
+            inventoryPage = Math.max(1, page);
+            loadInventory();
+        }
 
         function getStockStatusBadge(status) {
             const badges = {
@@ -240,7 +258,7 @@
         }
 
         async function loadInventory() {
-            const params = {};
+            const params = { page: inventoryPage, limit: INVENTORY_PAGE_SIZE };
             const search = document.getElementById('searchInput').value.trim();
             const stockFilter = document.getElementById('stockFilter').value;
 
@@ -257,6 +275,7 @@
                     allInventory = response.data || [];
                     updateStats(allInventory);
                     displayInventory(allInventory);
+                    renderListPagination('inventoryPagination', response.pagination, goInventoryPage);
                 }
             } catch (error) {
                 showError('Failed to load inventory');
@@ -280,7 +299,7 @@
                         <td>${formatCurrency(value)}</td>
                         ${canAdjust ? `
                         <td>
-                            <button class="btn btn-sm btn-warning" onclick="openAdjustModal(${item.product_id}, '${item.product_name.replace(/'/g, "\\'")}', ${item.quantity_available})">
+                            <button type="button" class="btn btn-sm btn-warning" data-action="adjust" data-product-id="${item.product_id}">
                                 <i class="fas fa-sliders-h"></i> Adjust
                             </button>
                         </td>` : ''}
@@ -367,10 +386,10 @@
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadBranches();
-            loadInventory();
-        });
+        bindEvents();
+        loadBranches();
+        loadInventory();
+    }, {});
     </script>
 </body>
 </html>
