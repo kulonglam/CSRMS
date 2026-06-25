@@ -74,7 +74,7 @@
                                         <th>Category</th>
                                         <th>Price</th>
                                         <th>Stock</th>
-                                        <th>Action</th>
+                                        <th class="actions-col">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="productsTable">
@@ -101,7 +101,7 @@
                                         <th>Items</th>
                                         <th>Amount</th>
                                         <th>Status</th>
-                                        <th>Action</th>
+                                        <th class="actions-col">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="recentSalesTable">
@@ -190,7 +190,7 @@
                     displayProducts(allProducts);
                 }
             } catch (error) {
-                showError('Failed to load dashboard');
+                showError(error.message || 'Failed to load dashboard');
                 console.error(error);
             }
         }
@@ -212,10 +212,12 @@
                     <td>${sale.item_count || 1}</td>
                     <td>${formatCurrency(sale.total_amount)}</td>
                     <td>${getStatusBadge(sale.status)}</td>
-                    <td>
+                    <td class="actions-col">
+                        <div class="action-buttons">
                         <button class="btn btn-xs btn-info" onclick="viewSaleDetails(${sale.id})">
                             <i class="fas fa-eye"></i>
                         </button>
+                        </div>
                     </td>
                 </tr>
             `).join('') || '<tr><td colspan="5" class="text-center text-muted py-4">No sales yet</td></tr>';
@@ -233,8 +235,8 @@
                             ? `<span class="badge bg-success">${product.quantity_in_stock}</span>`
                             : `<span class="badge bg-danger">Out of Stock</span>`}
                     </td>
-                    <td>
-                        <a href="sales.html" class="btn btn-xs btn-primary ${product.quantity_in_stock === 0 ? 'disabled' : ''}">
+                    <td class="actions-col">
+                        <a href="sales.html" class="btn btn-xs btn-primary text-nowrap ${product.quantity_in_stock === 0 ? 'disabled' : ''}">
                             <i class="fas fa-cart-plus"></i> Sell
                         </a>
                     </td>

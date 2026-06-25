@@ -116,11 +116,19 @@ app.use(errorHandler);
 // ── Start Server ────────────────────────────────────────────────
 if (require.main === module) {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`\n🚀 CSRMS running on http://localhost:${PORT}`);
     console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
     console.log(`   API         : http://localhost:${PORT}/api`);
     console.log(`   Health      : http://localhost:${PORT}/health\n`);
+  });
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n❌ Port ${PORT} is already in use. Stop the other process or set PORT in .env\n`);
+    } else {
+      console.error('\n❌ Server failed to start:', err.message, '\n');
+    }
+    process.exit(1);
   });
 }
 

@@ -1,9 +1,58 @@
-// API Configuration — same-origin when frontend is served by Express
-const API_BASE_URL = `${window.location.origin}/api`;
+// API base — persisted so login from Live Server still loads data on inner pages
+const CSRMS_ORIGIN_KEY = 'csrmsApiOrigin';
+
+function readStoredOrigin() {
+  try {
+    const stored = localStorage.getItem(CSRMS_ORIGIN_KEY);
+    if (stored) return stored.replace(/\/$/, '');
+  } catch {
+    /* ignore */
+  }
+  return window.location.origin;
+}
 
 class APIClient {
   constructor() {
-    this.baseURL = API_BASE_URL;
+    this.baseURL = `${readStoredOrigin()}/api`;
+  }
+
+  getAppOrigin() {
+    return readStoredOrigin();
+  }
+
+  persistOrigin(origin) {
+    const normalized = String(origin).replace(/\/$/, '');
+    try {
+      localStorage.setItem(CSRMS_ORIGIN_KEY, normalized);
+    } catch {
+      /* ignore */
+    }
+    this.baseURL = `${normalized}/api`;
+  }
+
+  /** Find a running CSRMS server (handles Live Server / wrong port). */
+  async ensureServerConnection() {
+    const origins = [
+      window.location.origin,
+      readStoredOrigin(),
+      'http://localhost:5000',
+      'http://127.0.0.1:5000',
+    ];
+    for (const origin of [...new Set(origins)]) {
+      if (!origin || origin === 'null' || origin.startsWith('file:')) continue;
+      try {
+        const res = await fetch(`${origin}/health`, { method: 'GET' });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (data?.success) {
+          this.persistOrigin(origin);
+          return true;
+        }
+      } catch {
+        /* try next */
+      }
+    }
+    return false;
   }
 
   getAuthHeader() {
@@ -27,14 +76,38 @@ class APIClient {
 
     try {
       const response = await fetch(url, options);
-      const result = await response.json();
+      let result;
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        if (response.status === 405) {
+          throw new Error(
+            'Wrong server for login. Stop Live Server, run npm run dev, then open http://localhost:5000'
+          );
+        }
+        throw new Error(
+          response.ok
+            ? 'Unexpected server response.'
+            : `Server error (HTTP ${response.status}). ${text.slice(0, 80)}`
+        );
+      }
 
       if (!response.ok) {
-        throw new Error(result.message || `HTTP ${response.status}`);
+        const detail = result.errors?.[0]?.message;
+        throw new Error(detail || result.message || `HTTP ${response.status}`);
       }
 
       return result;
     } catch (error) {
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        const friendly = new Error(
+          'Cannot reach the server. Run npm run dev and open http://localhost:5000 (not a local file path).'
+        );
+        console.error(`API Error [${method} ${endpoint}]:`, error);
+        throw friendly;
+      }
       console.error(`API Error [${method} ${endpoint}]:`, error);
       throw error;
     }

@@ -698,9 +698,18 @@ body.app-body {
 }
 
 .table .action-buttons {
-  display: flex;
+  display: inline-flex;
   gap: 0.375rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.table th.actions-col,
+.table td.actions-col {
+  white-space: nowrap;
+  width: 1%;
+  vertical-align: middle;
 }
 
 /* ── Forms & buttons ──────────────────────────────────── */

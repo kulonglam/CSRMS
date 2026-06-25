@@ -178,7 +178,7 @@
                                         <th>Paid</th>
                                         <th>Change</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
+                                        <th class="actions-col">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="salesTable">
@@ -596,10 +596,12 @@
                     <td>${formatCurrency(sale.amount_paid)}</td>
                     <td>${formatCurrency(sale.change_given || 0)}</td>
                     <td>${getStatusBadge(sale.status)}</td>
-                    <td>
+                    <td class="actions-col">
+                        <div class="action-buttons">
                         <button class="btn btn-sm btn-info" onclick="viewSale(${sale.id})">
                             <i class="fas fa-eye"></i>
                         </button>
+                        </div>
                     </td>
                 </tr>
             `).join('') || `<tr><td colspan="${colSpan}" class="text-center text-muted">No sales found</td></tr>`;

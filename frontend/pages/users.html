@@ -57,7 +57,7 @@
                                 <th>Role</th>
                                 <th>Branch</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th class="actions-col">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="usersTable">
@@ -229,7 +229,7 @@
                     <td>${getRoleBadge(user.role)}</td>
                     <td>${user.branch_name || '-'}</td>
                     <td>${getStatusBadge(user.status)}</td>
-                    <td>
+                    <td class="actions-col">
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-warning" onclick="editUser(${user.id})" title="Edit user">
                                 <i class="fas fa-edit"></i>

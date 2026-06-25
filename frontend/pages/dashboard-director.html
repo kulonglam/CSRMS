@@ -135,7 +135,7 @@
                     displayDashboard(data.data);
                 }
             } catch (error) {
-                showError('Failed to load dashboard');
+                showError(error.message || 'Failed to load dashboard');
             }
         }
 

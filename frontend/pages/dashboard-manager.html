@@ -106,7 +106,7 @@
                                         <th>Current Stock</th>
                                         <th>Reorder Level</th>
                                         <th>Category</th>
-                                        <th>Action</th>
+                                        <th class="actions-col">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="lowStockTable">
@@ -168,7 +168,7 @@
                     displayDashboard(data.data);
                 }
             } catch (error) {
-                showError('Failed to load dashboard');
+                showError(error.message || 'Failed to load dashboard');
                 console.error(error);
             }
         }
@@ -197,7 +197,9 @@
                     <td>${alert.quantity_available}</td>
                     <td>${alert.reorder_level}</td>
                     <td>—</td>
-                    <td><a href="procurement.html" class="btn btn-xs btn-warning btn-sm"><i class="fas fa-truck"></i> Procure</a></td>
+                    <td class="actions-col">
+                        <a href="procurement.html" class="btn btn-xs btn-warning btn-sm text-nowrap"><i class="fas fa-truck"></i> Procure</a>
+                    </td>
                 </tr>
             `).join('') || '<tr><td colspan="5" class="text-center text-muted py-4">No low stock items</td></tr>';
             document.getElementById('lowStockTable').innerHTML = alertsHtml;

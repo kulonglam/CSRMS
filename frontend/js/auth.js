@@ -2,7 +2,17 @@
 class AuthManager {
   constructor() {
     this.token = localStorage.getItem('token');
-    this.user = JSON.parse(localStorage.getItem('user') || 'null');
+    this.user = this.parseStoredUser(localStorage.getItem('user'));
+  }
+
+  parseStoredUser(raw) {
+    if (!raw || raw === 'null' || raw === 'undefined') return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
   }
 
   // Login
@@ -49,6 +59,7 @@ class AuthManager {
     localStorage.removeItem('user');
     localStorage.removeItem('loginTime');
     localStorage.removeItem('lastActivity');
+    localStorage.removeItem('csrmsApiOrigin');
   }
 
   // Check if authenticated
@@ -74,25 +85,18 @@ class AuthManager {
     return this.user?.role === role;
   }
 
-  // Redirect based on role
+  // Redirect based on role (always use CSRMS server origin, not Live Server)
   redirectToDashboard() {
     const role = this.getUserRole();
-    const isInPages = window.location.pathname.includes('/pages/');
-    const basePath = isInPages ? '..' : '.';
-    
-    switch (role) {
-      case 'director':
-        window.location.href = `${basePath}/pages/dashboard-director.html`;
-        break;
-      case 'manager':
-        window.location.href = `${basePath}/pages/dashboard-manager.html`;
-        break;
-      case 'sales_agent':
-        window.location.href = `${basePath}/pages/dashboard-agent.html`;
-        break;
-      default:
-        window.location.href = `${basePath}/index.html`;
-    }
+    const origin = (typeof api !== 'undefined' && api.getAppOrigin)
+      ? api.getAppOrigin()
+      : window.location.origin;
+    const pages = {
+      director: '/pages/dashboard-director.html',
+      manager: '/pages/dashboard-manager.html',
+      sales_agent: '/pages/dashboard-agent.html',
+    };
+    window.location.href = `${origin}${pages[role] || '/index.html'}`;
   }
 }
 
@@ -103,7 +107,7 @@ window.auth = auth;
 // Protect pages - redirect to login if not authenticated
 function requireAuth() {
   if (!auth.isAuthenticated()) {
-    window.location.href = '../index.html';
+    window.location.href = getLoginPath();
     return;
   }
   checkSessionTimeout();
@@ -129,6 +133,12 @@ function bindActivityTracking() {
 }
 
 function getLoginPath() {
+  const origin = (typeof api !== 'undefined' && api.getAppOrigin)
+    ? api.getAppOrigin()
+    : window.location.origin;
+  if (origin && origin !== 'null' && !origin.startsWith('file:')) {
+    return `${origin}/index.html`;
+  }
   return window.location.pathname.includes('/pages/') ? '../index.html' : 'index.html';
 }
 

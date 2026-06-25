@@ -64,7 +64,7 @@
                     <div class="tab-pane fade" id="historyTab">
                         <div class="table-container">
                             <table class="table table-hover">
-                                <thead><tr><th>Date</th><th>Agent</th><th>Expected</th><th>Submitted</th><th>Variance</th><th>Status</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>Date</th><th>Agent</th><th>Expected</th><th>Submitted</th><th>Variance</th><th>Status</th><th class="actions-col">Actions</th></tr></thead>
                                 <tbody id="historyTable"><tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr></tbody>
                             </table>
                         </div>
@@ -173,8 +173,8 @@
                         <td>${formatCurrency(r.expected_amount)}</td><td>${formatCurrency(r.submitted_amount)}</td>
                         <td>${formatCurrency(r.variance)}</td>
                         <td>${balanceStatusBadge(r.status)}</td>
-                        <td>${['pending', 'flagged'].includes(r.status) ? `
-                            <div class="d-flex gap-1">
+                        <td class="actions-col">${['pending', 'flagged'].includes(r.status) ? `
+                            <div class="action-buttons">
                                 <button type="button" class="btn btn-sm btn-success btn-approve-balance" data-id="${r.id}">Approve</button>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-reject-balance" data-id="${r.id}" data-agent="${encodeURIComponent(r.agent_name)}">Reject</button>
                             </div>` : r.status === 'rejected' ? '<span class="text-muted small">Awaiting agent resubmit</span>' : ''}</td>

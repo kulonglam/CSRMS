@@ -63,12 +63,12 @@
                         <thead>
                             <tr>
                                 <th>Log ID</th>
-                                <th>Action</th>
+                                <th class="actions-col">Action</th>
                                 <th>User</th>
                                 <th>Table</th>
                                 <th>Record ID</th>
                                 <th>Timestamp</th>
-                                <th>Details</th>
+                                <th class="actions-col">Details</th>
                             </tr>
                         </thead>
                         <tbody id="auditTable">
@@ -242,16 +242,18 @@
                 return `
                 <tr>
                     <td>${log.id}</td>
-                    <td>${getActionBadge(log.action)}</td>
+                    <td class="actions-col">${getActionBadge(log.action)}</td>
                     <td>${log.user_name || 'System'}</td>
                     <td>${log.table_name || '—'}</td>
                     <td>${recordId != null ? recordId : '—'}</td>
                     <td>${formatDate(log.created_at)}</td>
-                    <td>
+                    <td class="actions-col">
+                        <div class="action-buttons">
                         <button type="button" class="btn btn-sm btn-info btn-audit-details" data-log-id="${log.id}">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <small class="text-muted ms-1">${getLogSummary(log)}</small>
+                        <small class="text-muted">${getLogSummary(log)}</small>
+                        </div>
                     </td>
                 </tr>
             `;

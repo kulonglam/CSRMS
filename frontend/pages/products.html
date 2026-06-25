@@ -80,7 +80,7 @@
                                 <th>Selling Price</th>
                                 <th>Stock</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th class="actions-col">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="productsTable">
@@ -402,7 +402,7 @@
                     <td>${formatCurrency(prod.price)}</td>
                     <td>${getStockBadge(prod.quantity_in_stock, prod.reorder_level)}</td>
                     <td>${getStatusBadge(prod.status)}</td>
-                    <td>
+                    <td class="actions-col">
                         <div class="action-buttons">
                             <button type="button" class="btn btn-sm btn-info" data-action="view" data-id="${prod.id}" title="View">
                                 <i class="fas fa-eye"></i>

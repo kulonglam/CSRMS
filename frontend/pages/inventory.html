@@ -92,7 +92,7 @@
                                         <th>Reorder Level</th>
                                         <th>Stock Status</th>
                                         <th>Value</th>
-                                        <th id="actionsCol">Actions</th>
+                                        <th id="actionsCol" class="actions-col">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="inventoryTable">
@@ -298,10 +298,12 @@
                         <td>${getStockStatusBadge(item.stock_status)}</td>
                         <td>${formatCurrency(value)}</td>
                         ${canAdjust ? `
-                        <td>
+                        <td class="actions-col">
+                            <div class="action-buttons">
                             <button type="button" class="btn btn-sm btn-warning" data-action="adjust" data-product-id="${item.product_id}">
                                 <i class="fas fa-sliders-h"></i> Adjust
                             </button>
+                            </div>
                         </td>` : ''}
                     </tr>
                 `;

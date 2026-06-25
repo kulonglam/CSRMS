@@ -46,7 +46,7 @@
                                 <th>Cost</th>
                                 <th>Total</th>
                                 <th>Recorded By</th>
-                                <th data-manager-only>Actions</th>
+                                <th data-manager-only class="actions-col">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="procurementsTable"><tr><td colspan="10" class="text-center text-muted py-4">Loading...</td></tr></tbody>
@@ -173,7 +173,7 @@
                     <td>${formatCurrency(p.cost_price)}</td>
                     <td>${formatCurrency(total)}</td>
                     <td>${p.recorded_by_name}</td>
-                    ${managerActions ? `<td>
+                    ${managerActions ? `<td class="actions-col">
                         <div class="action-buttons">
                             <button type="button" class="btn btn-sm btn-warning btn-edit-proc" data-id="${p.id}" title="Edit">
                                 <i class="fas fa-edit"></i>

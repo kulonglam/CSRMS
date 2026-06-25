@@ -71,6 +71,12 @@
 
   async function boot(pageFn, options = {}) {
     await loadStandard(options);
+    if (global.api?.ensureServerConnection) {
+      const ok = await global.api.ensureServerConnection();
+      if (!ok && typeof global.showError === 'function') {
+        global.showError('Cannot reach CSRMS server. Run npm run dev and open http://localhost:5000');
+      }
+    }
     // Scripts load after DOMContentLoaded — call page init directly, not via that event.
     if (typeof pageFn === 'function') {
       await pageFn();

@@ -45,7 +45,7 @@
                                 <th>Description</th>
                                 <th>Status</th>
                                 <th>Created</th>
-                                <th>Actions</th>
+                                <th class="actions-col">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="categoriesTable">
@@ -122,7 +122,7 @@
                     <td>${cat.description || '—'}</td>
                     <td>${getStatusBadge(cat.status)}</td>
                     <td>${formatDate(cat.created_at)}</td>
-                    <td>
+                    <td class="actions-col">
                         <div class="action-buttons" data-manager-only>
                             <button class="btn btn-sm btn-warning" onclick="editCategory(${cat.id})">
                                 <i class="fas fa-edit"></i>

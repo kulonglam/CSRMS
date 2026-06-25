@@ -18,7 +18,8 @@
                     <div class="subtitle">Sign in to Crown Stores Retail Management System</div>
                 </div>
 
-                <form id="loginForm" method="post" action="javascript:void(0)" novalidate>
+                <form id="loginForm" novalidate>
+                    <div id="loginFeedback" class="d-none mb-3" role="alert"></div>
                     <div class="form-group">
                         <label for="username">Username</label>
                         <input type="text" class="form-control" id="username" placeholder="Enter your username" autocomplete="username" required>
@@ -49,10 +50,50 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        if (window.auth?.isAuthenticated()) window.auth.redirectToDashboard();
+        function setLoginFeedback(message, type) {
+            const el = document.getElementById('loginFeedback');
+            if (!message) {
+                el.className = 'd-none mb-3';
+                el.textContent = '';
+                return;
+            }
+            el.className = `alert alert-${type} mb-3`;
+            el.textContent = message;
+        }
+
+        async function ensureCsrmsServer() {
+            if (window.location.protocol === 'file:') {
+                setLoginFeedback(
+                    'Open the app through the server: run npm run dev, then go to http://localhost:5000',
+                    'danger'
+                );
+                return false;
+            }
+            const ok = await api.ensureServerConnection();
+            if (!ok) {
+                setLoginFeedback(
+                    'CSRMS server not found. In the project folder run npm run dev, then open http://localhost:5000',
+                    'danger'
+                );
+                return false;
+            }
+            return true;
+        }
+
+        (async () => {
+            const serverOk = await ensureCsrmsServer();
+            if (!serverOk || !window.auth?.isAuthenticated()) return;
+            try {
+                await api.getCurrentUser();
+                window.auth.redirectToDashboard();
+            } catch {
+                window.auth.clearSession();
+            }
+        })();
 
         async function handleLogin(event) {
                 event.preventDefault();
+                setLoginFeedback('');
                 const username = document.getElementById('username').value.trim();
                 const password = document.getElementById('password').value;
                 const loginBtn = document.getElementById('loginBtn');
@@ -60,7 +101,9 @@
                 const loginSpinner = document.getElementById('loginSpinner');
 
                 if (!username || !password) {
-                    showError('Username and password are required');
+                    const msg = 'Username and password are required';
+                    setLoginFeedback(msg, 'danger');
+                    showError(msg);
                     return;
                 }
 
@@ -68,15 +111,20 @@
                     loginBtn.disabled = true;
                     loginText.style.display = 'none';
                     loginSpinner.style.display = 'inline-block';
+                    if (!(await ensureCsrmsServer())) return;
                     const response = await window.auth.login(username, password);
                     if (response.success) {
                         showSuccess('Login successful! Redirecting…');
                         setTimeout(() => window.auth.redirectToDashboard(), 1200);
                     } else {
-                        showError(response.message || 'Login failed');
+                        const msg = response.message || 'Login failed';
+                        setLoginFeedback(msg, 'danger');
+                        showError(msg);
                     }
                 } catch (error) {
-                    showError(error.message || 'Login failed. Please try again.');
+                    const msg = error.message || 'Login failed. Please try again.';
+                    setLoginFeedback(msg, 'danger');
+                    showError(msg);
                 } finally {
                     loginBtn.disabled = false;
                     loginText.style.display = 'inline';
