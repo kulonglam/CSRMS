@@ -29,6 +29,7 @@
   --text-muted: #94a3b8;
 
   --sidebar-width: 210px;
+  --sidebar-bg: #eef2ff;
   --navbar-height: 64px;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -403,7 +404,7 @@ body.app-body {
 .sidebar {
   width: var(--sidebar-width);
   flex-shrink: 0;
-  background: var(--surface);
+  background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   padding: 0.875rem 0.5rem;
   position: sticky;
@@ -454,14 +455,15 @@ body.app-body {
 }
 
 .sidebar-menu a:hover {
-  background: var(--surface-muted);
+  background: rgba(79, 70, 229, 0.1);
   color: var(--text);
 }
 
 .sidebar-menu a.active {
-  background: var(--primary-soft);
+  background: var(--surface);
   color: var(--primary);
   font-weight: 600;
+  box-shadow: var(--shadow-xs);
 }
 
 .sidebar-menu a.active i {

@@ -20,35 +20,6 @@ const getCategories = async (req, res) => {
   }
 };
 
-const getCategory = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await query(
-      'SELECT id, name, description, status, created_at FROM categories WHERE id = $1',
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Category not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: result.rows[0],
-    });
-  } catch (error) {
-    console.error('Get category error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
 const createCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
@@ -211,7 +182,6 @@ const deleteCategory = async (req, res) => {
 
 module.exports = {
   getCategories,
-  getCategory,
   createCategory,
   updateCategory,
   deleteCategory,

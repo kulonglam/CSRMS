@@ -48,26 +48,6 @@ const getProcurements = async (req, res, next) => {
   }
 };
 
-// GET /api/procurements/:id
-const getProcurement = async (req, res, next) => {
-  try {
-    const result = await query(
-      `SELECT pr.*, p.name AS product_name, b.name AS branch_name, u.full_name AS recorded_by_name
-       FROM procurements pr
-       JOIN products p ON p.id = pr.product_id
-       JOIN branches b ON b.id = pr.branch_id
-       JOIN users u ON u.id = pr.recorded_by
-       WHERE pr.id = $1`,
-      [req.params.id]
-    );
-    if (result.rows.length === 0)
-      return res.status(404).json({ success: false, message: 'Procurement not found.' });
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) {
-    next(err);
-  }
-};
-
 // POST /api/procurements
 const createProcurement = async (req, res, next) => {
   const client = await getClient();
@@ -269,4 +249,4 @@ const deleteProcurement = async (req, res, next) => {
   }
 };
 
-module.exports = { getProcurements, getProcurement, createProcurement, updateProcurement, deleteProcurement };
+module.exports = { getProcurements, createProcurement, updateProcurement, deleteProcurement };

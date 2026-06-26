@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
-const { getUsers, getUser, createUser, updateUser, resetPassword, deleteUser } = require('../controllers/userController');
+const { getUsers, createUser, updateUser, resetPassword, deleteUser } = require('../controllers/userController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/errorHandler');
 
@@ -8,7 +8,6 @@ router.use(authenticate);
 
 // Managers may list branch users (e.g. cashier balancing); only directors manage accounts.
 router.get('/', authorize('director', 'manager'), getUsers);
-router.get('/:id', authorize('director', 'manager'), getUser);
 
 router.post('/', authorize('director'), [
   body('full_name').trim().notEmpty().withMessage('Full name is required.'),

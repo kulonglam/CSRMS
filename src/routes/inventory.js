@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
-const { getInventory, getInventoryItem, adjustStock, getAdjustments } = require('../controllers/inventoryController');
+const { getInventory, adjustStock, getAdjustments } = require('../controllers/inventoryController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/errorHandler');
 
@@ -8,7 +8,6 @@ router.use(authenticate);
 
 router.get('/', getInventory);
 router.get('/adjustments', authorize('manager'), getAdjustments);
-router.get('/product/:productId/branch/:branchId', getInventoryItem);
 
 router.post('/adjust', authorize('manager'), [
   body('product_id').isInt({ min: 1 }).withMessage('Valid product ID is required.'),

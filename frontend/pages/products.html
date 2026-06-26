@@ -265,7 +265,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
 
         const user = auth.getCurrentUser();
         const userRole = user?.role;

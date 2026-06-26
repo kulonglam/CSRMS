@@ -35,5 +35,4 @@ module.exports = {
   assertRecordBranch,
   assertSaleAccess,
   handleAccessError,
-  accessError,
 };

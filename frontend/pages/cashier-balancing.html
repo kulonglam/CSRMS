@@ -98,7 +98,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
         if (!isManager()) { showError('Manager access required'); setTimeout(() => auth.redirectToDashboard(), 1500); }
         initPage('cashier-balancing');
 
@@ -142,7 +142,7 @@
                         showSuccess('Agent has submitted cash — verify and approve.');
                     }
                     document.getElementById('agentSalesTable').innerHTML = (d.sales || []).map(s => `
-                        <tr><td><code>${s.receipt_number}</code></td><td>${formatDate(s.created_at)}</td>
+                        <tr><td><code>${s.receipt_number}</code></td><td>${formatDateTime(s.created_at)}</td>
                         <td>${formatCurrency(s.total_amount)}</td><td>${formatCurrency(s.amount_paid)}</td><td>${formatCurrency(s.change_given)}</td></tr>
                     `).join('') || '<tr><td colspan="5" class="text-muted text-center">No sales</td></tr>';
                 }

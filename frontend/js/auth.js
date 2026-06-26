@@ -106,11 +106,25 @@ window.auth = auth;
 
 // Protect pages - redirect to login if not authenticated
 function requireAuth() {
+  const loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
+  const lastActivity = parseInt(localStorage.getItem('lastActivity') || loginTime.toString(), 10);
+  const now = Date.now();
+  const idleExpired = loginTime && now - lastActivity > SESSION_IDLE_MS;
+
+  if (localStorage.getItem('token') && idleExpired) {
+    auth.clearSession();
+    showSessionExpiredModal();
+    return false;
+  }
+
   if (!auth.isAuthenticated()) {
     window.location.href = getLoginPath();
-    return;
+    return false;
   }
-  checkSessionTimeout();
+
+  localStorage.setItem('lastActivity', now.toString());
+  bindActivityTracking();
+  return true;
 }
 
 const SESSION_IDLE_MS = 30 * 60 * 1000; // 30 minutes idle timeout
@@ -181,18 +195,7 @@ function showSessionExpiredModal() {
 }
 
 function checkSessionTimeout() {
-  const loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
-  const lastActivity = parseInt(localStorage.getItem('lastActivity') || loginTime.toString(), 10);
-  const now = Date.now();
-
-  if (loginTime && now - lastActivity > SESSION_IDLE_MS) {
-    auth.clearSession();
-    showSessionExpiredModal();
-    return;
-  }
-
-  localStorage.setItem('lastActivity', now.toString());
-  bindActivityTracking();
+  return requireAuth();
 }
 
 // Show notifications
@@ -283,7 +286,7 @@ async function handleLogout() {
     await auth.logout();
     showSuccess('Logged out successfully');
     setTimeout(() => {
-      window.location.href = '/';
+      window.location.href = getLoginPath();
     }, 500);
   } catch {
     showError('Logout failed');

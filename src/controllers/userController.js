@@ -52,42 +52,6 @@ const getUsers = async (req, res) => {
   }
 };
 
-const getUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await query(
-      `
-      SELECT 
-        u.id, u.full_name, u.username, u.email, u.branch_id, b.name as branch_name,
-        u.role, u.status, u.created_at, u.updated_at
-      FROM users u
-      LEFT JOIN branches b ON u.branch_id = b.id
-      WHERE u.id = $1
-      `,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: result.rows[0],
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
 const createUser = async (req, res) => {
   try {
     const { full_name, username, password, branch_id, role, email } = req.body;
@@ -371,7 +335,6 @@ const deleteUser = async (req, res) => {
 
 module.exports = {
   getUsers,
-  getUser,
   createUser,
   updateUser,
   resetPassword,

@@ -120,7 +120,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
         if (!auth.hasRole('director')) {
             showError('Unauthorized: Director access required');
             setTimeout(() => window.location.href = '../index.html', 2000);
@@ -159,7 +159,7 @@
             // Display sales trends
             const salesTrendsHtml = (data.sales_trends || []).map(trend => `
                 <tr>
-                    <td>${formatDate(trend.date)}</td>
+                    <td>${formatDateOnly(trend.date)}</td>
                     <td>${trend.transactions}</td>
                     <td>${formatCurrency(trend.daily_total)}</td>
                 </tr>

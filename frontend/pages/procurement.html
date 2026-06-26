@@ -101,7 +101,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
         if (!auth.hasRole(['director', 'manager'])) {
             showError('Unauthorized'); setTimeout(() => auth.redirectToDashboard(), 1500);
         }

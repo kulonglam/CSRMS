@@ -164,7 +164,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
         if (!auth.hasRole(['sales_agent', 'manager', 'director'])) {
             showError('Unauthorized: Sales Agent access required');
             setTimeout(() => window.location.href = '../index.html', 2000);
@@ -208,7 +208,7 @@
             // Recent Sales
             const salesHtml = (data.recent_sales || []).map(sale => `
                 <tr>
-                    <td>${formatDate(sale.sale_date || sale.created_at)}</td>
+                    <td>${formatDateTime(sale.created_at || sale.sale_date)}</td>
                     <td>${sale.item_count || 1}</td>
                     <td>${formatCurrency(sale.total_amount)}</td>
                     <td>${getStatusBadge(sale.status)}</td>

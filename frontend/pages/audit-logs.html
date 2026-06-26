@@ -63,7 +63,7 @@
                         <thead>
                             <tr>
                                 <th>Log ID</th>
-                                <th class="actions-col">Action</th>
+                                <th>Action</th>
                                 <th>User</th>
                                 <th>Table</th>
                                 <th>Record ID</th>
@@ -99,7 +99,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
 
         const user = auth.getCurrentUser();
 
@@ -242,7 +242,7 @@
                 return `
                 <tr>
                     <td>${log.id}</td>
-                    <td class="actions-col">${getActionBadge(log.action)}</td>
+                    <td>${getActionBadge(log.action)}</td>
                     <td>${log.user_name || 'System'}</td>
                     <td>${log.table_name || '—'}</td>
                     <td>${recordId != null ? recordId : '—'}</td>

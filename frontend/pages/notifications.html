@@ -43,7 +43,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
         if (!isManager()) { showError('Manager access required'); setTimeout(() => auth.redirectToDashboard(), 1500); }
         initPage('notifications');
 

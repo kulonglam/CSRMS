@@ -17,11 +17,41 @@ function normalizeDateKey(value) {
   return str.slice(0, 10);
 }
 
+function formatDateOnly(dateString) {
+  if (!dateString) return '-';
+  const key = normalizeDateKey(dateString);
+  if (!key) return '-';
+  const [y, m, d] = key.split('-').map(Number);
+  const local = new Date(y, m - 1, d);
+  if (Number.isNaN(local.getTime())) return '-';
+  return local.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return '-';
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/** Date-only values (sale_date, balance_date) show no time; timestamps show local date + time. */
 function formatDate(dateString) {
   if (!dateString) return '-';
-  const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-  const formatted = new Date(dateString).toLocaleDateString('en-US', options);
-  return formatted === 'Invalid Date' ? '-' : formatted;
+  const str = String(dateString);
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(str)
+    || /^\d{4}-\d{2}-\d{2}T00:00:00(\.000)?Z?$/.test(str);
+  return dateOnly ? formatDateOnly(dateString) : formatDateTime(dateString);
 }
 
 function formatCurrency(amount) {

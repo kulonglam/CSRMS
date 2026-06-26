@@ -84,7 +84,10 @@
             const serverOk = await ensureCsrmsServer();
             if (!serverOk || !window.auth?.isAuthenticated()) return;
             try {
-                await api.getCurrentUser();
+                const me = await api.getCurrentUser();
+                if (me.success && me.data) {
+                    window.auth.setSession(localStorage.getItem('token'), me.data);
+                }
                 window.auth.redirectToDashboard();
             } catch {
                 window.auth.clearSession();

@@ -58,12 +58,4 @@ const authorize = (...roles) => {
   };
 };
 
-const requireBranch = (req, res, next) => {
-  if (req.user.role === 'director') return next();
-  if (!req.user.branch_id) {
-    return res.status(403).json({ success: false, message: 'No branch assigned to this user.' });
-  }
-  next();
-};
-
-module.exports = { authenticate, authorize, requireBranch };
+module.exports = { authenticate, authorize };

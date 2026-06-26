@@ -35,61 +35,6 @@ const getBranches = async (req, res) => {
   }
 };
 
-const getBranch = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const branchResult = await query(
-      'SELECT id, name, location, status, created_at, updated_at FROM branches WHERE id = $1',
-      [id]
-    );
-
-    if (branchResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Branch not found',
-      });
-    }
-
-    // Get branch stats
-    const statsResult = await query(
-      `
-      SELECT 
-        COUNT(DISTINCT u.id) as staff_count,
-        COUNT(DISTINCT p.id) as product_count,
-        COALESCE(SUM(i.quantity_available), 0) as inventory_count
-      FROM branches b
-      LEFT JOIN users u ON b.id = u.branch_id
-      LEFT JOIN inventory i ON b.id = i.branch_id
-      LEFT JOIN products p ON i.product_id = p.id
-      WHERE b.id = $1
-      GROUP BY b.id
-      `,
-      [id]
-    );
-
-    const branch = branchResult.rows[0];
-    if (statsResult.rows.length > 0) {
-      branch.stats = {
-        staff_count: parseInt(statsResult.rows[0].staff_count),
-        product_count: parseInt(statsResult.rows[0].product_count),
-        inventory_count: parseInt(statsResult.rows[0].inventory_count),
-      };
-    }
-
-    res.status(200).json({
-      success: true,
-      data: branch,
-    });
-  } catch (error) {
-    console.error('Get branch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-};
-
 const createBranch = async (req, res) => {
   try {
     const { name, location } = req.body;
@@ -267,7 +212,6 @@ const deleteBranch = async (req, res) => {
 
 module.exports = {
   getBranches,
-  getBranch,
   createBranch,
   updateBranch,
   deleteBranch,

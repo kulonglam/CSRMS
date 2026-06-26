@@ -239,7 +239,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
 
         const user = auth.getCurrentUser();
         const userRole = user?.role;
@@ -512,7 +512,7 @@
                 </div>
                 <hr>
                 <div class="mb-2"><small>Agent: ${sale.sales_agent_name}</small></div>
-                <div class="mb-2"><small>Date: ${formatDate(sale.created_at || sale.sale_date)}</small></div>
+                <div class="mb-2"><small>Date: ${formatDateTime(sale.created_at || sale.sale_date)}</small></div>
                 <hr>
                 ${(sale.items || []).map(item => `
                     <div class="d-flex justify-content-between">
@@ -589,7 +589,7 @@
             document.getElementById('salesTable').innerHTML = sales.map(sale => `
                 <tr>
                     <td><code>${sale.receipt_number}</code></td>
-                    <td>${formatDate(sale.sale_date || sale.created_at)}</td>
+                    <td>${formatDateTime(sale.created_at || sale.sale_date)}</td>
                     <td>${sale.sales_agent_name}</td>
                     ${showBranch ? `<td>${sale.branch_name}</td>` : ''}
                     <td>${formatCurrency(sale.total_amount)}</td>
@@ -644,7 +644,7 @@
                             <table class="table table-sm">
                                 <tr><th>Agent</th><td>${sale.sales_agent_name}</td></tr>
                                 <tr><th>Branch</th><td>${sale.branch_name}</td></tr>
-                                <tr><th>Date</th><td>${formatDate(sale.created_at || sale.sale_date)}</td></tr>
+                                <tr><th>Date</th><td>${formatDateTime(sale.created_at || sale.sale_date)}</td></tr>
                                 <tr><th>Status</th><td>${getStatusBadge(sale.status)}</td></tr>
                             </table>
                         </div>

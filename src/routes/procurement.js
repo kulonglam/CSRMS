@@ -2,7 +2,6 @@ const router = require('express').Router();
 const { body } = require('express-validator');
 const {
   getProcurements,
-  getProcurement,
   createProcurement,
   updateProcurement,
   deleteProcurement,
@@ -13,7 +12,6 @@ const { validate } = require('../middleware/errorHandler');
 router.use(authenticate);
 
 router.get('/', authorize('director', 'manager'), getProcurements);
-router.get('/:id', authorize('director', 'manager'), getProcurement);
 
 router.post('/', authorize('manager'), [
   body('product_id').isInt({ min: 1 }).withMessage('Valid product ID is required.'),

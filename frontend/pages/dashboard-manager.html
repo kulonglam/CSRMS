@@ -153,7 +153,7 @@
 
     
     <script>
-        CSRMSLayout.boot(async () => {requireAuth();
+        CSRMSLayout.boot(async () => {if (!requireAuth()) return;
         if (!auth.hasRole(['manager', 'director'])) {
             showError('Unauthorized: Manager access required');
             setTimeout(() => window.location.href = '../index.html', 2000);

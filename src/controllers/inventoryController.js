@@ -2,11 +2,7 @@ const { query, getClient } = require('../config/database');
 const { auditLog } = require('../middleware/audit');
 const { createLowStockNotification } = require('../utils/notifications');
 const { parsePagination, paginationMeta } = require('../utils/helpers');
-const {
-  getEffectiveBranchId,
-  assertRecordBranch,
-  handleAccessError,
-} = require('../utils/branchAccess');
+const { getEffectiveBranchId } = require('../utils/branchAccess');
 
 // GET /api/inventory
 const getInventory = async (req, res, next) => {
@@ -55,30 +51,6 @@ const getInventory = async (req, res, next) => {
       pagination: paginationMeta(page, limit, total),
     });
   } catch (err) {
-    next(err);
-  }
-};
-
-// GET /api/inventory/product/:productId/branch/:branchId
-const getInventoryItem = async (req, res, next) => {
-  try {
-    const { productId, branchId } = req.params;
-    const result = await query(
-      `SELECT i.*, p.name AS product_name, p.reorder_level, b.name AS branch_name
-       FROM inventory i
-       JOIN products p ON p.id = i.product_id
-       JOIN branches b ON b.id = i.branch_id
-       WHERE i.product_id = $1 AND i.branch_id = $2`,
-      [productId, branchId]
-    );
-    if (result.rows.length === 0)
-      return res.status(404).json({ success: false, message: 'Inventory record not found.' });
-
-    assertRecordBranch(req.user, result.rows[0].branch_id);
-
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) {
-    if (handleAccessError(res, err, next)) return;
     next(err);
   }
 };
@@ -168,4 +140,4 @@ const getAdjustments = async (req, res, next) => {
   }
 };
 
-module.exports = { getInventory, getInventoryItem, adjustStock, getAdjustments };
+module.exports = { getInventory, adjustStock, getAdjustments };
